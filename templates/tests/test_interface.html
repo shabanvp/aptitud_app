@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+            <h2>{{ category.name }} Assessment</h2>
+            <span style="background: #e0e7ff; padding: 4px 8px; border-radius: 4px; font-size: 0.9rem;">{{
+                questions|length }} Questions</span>
+        </div>
+        <div id="timer" style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color);">10:00</div>
+    </div>
+
+    <form method="post" action="{% url 'submit_test' %}" id="testForm">
+        {% csrf_token %}
+
+        {% for question in questions %}
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem;">
+                Q{{ forloop.counter }}. {{ question.text }}
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for option in question.options.all %}
+                <label
+                    style="border: 1px solid #d1d5db; padding: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                    class="option-label">
+                    <input type="radio" name="question_{{ question.id }}" value="{{ option.id }}"
+                        style="margin-right: 0.5rem;">
+                    {{ option.text }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div style="text-align: right;">
+            <button type="submit" class="btn">Submit Test</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Simple Timer (10 minutes)
+    let timeLeft = 600; // seconds
+    const timerDisplay = document.getElementById('timer');
+
+    const interval = setInterval(() => {
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+
+        timerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            document.getElementById('testForm').submit();
+        }
+    }, 1000);
+
+    // Option selection styling
+    const radios = document.querySelectorAll('input[type="radio"]');
+    radios.forEach(radio => {
+        radio.addEventListener('change', function () {
+            // Reset all in this group
+            const name = this.name;
+            document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+                r.parentElement.style.borderColor = '#d1d5db';
+                r.parentElement.style.backgroundColor = 'transparent';
+            });
+
+            // Highlight selected
+            if (this.checked) {
+                this.parentElement.style.borderColor = '#4f46e5';
+                this.parentElement.style.backgroundColor = '#eef2ff';
+            }
+        });
+    });
+</script>
+{% endblock %}
