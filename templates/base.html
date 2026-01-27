@@ -1,3 +1,5 @@
+{% load static %}
+{% load notification_tags %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -268,6 +270,117 @@
             align-items: center;
             gap: 0.4rem;
         }
+
+        /* Navbar Styling Corrections */
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .profile-btn {
+            background: #e0e7ff;
+            color: var(--primary-color);
+            border: 2px solid transparent;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        [data-theme="dark"] .profile-btn {
+            background: rgba(30, 41, 59, 0.8);
+            color: #818cf8;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 120%;
+            background: var(--card-bg);
+            min-width: 160px;
+            box-shadow: var(--shadow);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            z-index: 200;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content a,
+        .dropdown-content button {
+            color: var(--text-color);
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            text-align: left;
+            transition: background 0.2s;
+            background: none;
+            border: none;
+            width: 100%;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .dropdown-content a:hover,
+        .dropdown-content button:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--primary-color);
+        }
+
+        [data-theme="dark"] .dropdown-content {
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] .dropdown-content a:hover,
+        [data-theme="dark"] .dropdown-content button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .stats-pill {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.5);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        [data-theme="dark"] .stats-pill {
+            background: rgba(30, 41, 59, 0.5);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .notification-dot {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            border: 2px solid var(--bg-color);
+            z-index: 10;
+        }
     </style>
     <script>
         // Check for saved theme preference or system preference
@@ -287,37 +400,73 @@
             <button id="themeToggle" class="theme-toggle" aria-label="Toggle Dark Mode">
                 <span id="themeIcon">☀️</span>
             </button>
+            <div class="nav-links">
+                {% if user.is_authenticated %}
+                {% if user.is_company %}
+                <!-- Company Navbar -->
+                <a href="{% url 'company_dashboard' %}"
+                    class="nav-link {% if request.resolver_match.url_name == 'company_dashboard' %}active{% endif %}">Dashboard</a>
+                <a href="#" class="nav-link">Find Talent</a>
 
-            {% if user.is_authenticated %}
-            <div class="stats-bar">
-                <span class="stat-item">lvl {{ user.level }}</span>
-                <span class="stat-item" style="color: var(--accent-color)">● {{ user.coins }}</span>
-                <span class="stat-item">♥ {{ user.lives }}/5</span>
+                <div style="margin-left: 1rem; position: relative;" class="dropdown">
+                    {% has_unread_messages user as unread_company %}
+                    <button class="profile-btn">
+                        {{ user.username.0|upper }}
+                    </button>
+                    {% if unread_company %}
+                    <span class="notification-dot"></span>
+                    {% endif %}
+                    <div class="dropdown-content">
+                        <a href="{% url 'profile' %}">Profile</a>
+                        <a href="{% url 'inbox' %}">Inbox</a>
+                        <form action="{% url 'logout' %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit">Log Out</button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Candidate Navbar -->
+                <a href="{% url 'arena_home' %}"
+                    class="nav-link {% if request.resolver_match.url_name == 'arena_home' %}active{% endif %}">Arena</a>
+                <a href="{% url 'store' %}"
+                    class="nav-link {% if request.resolver_match.url_name == 'store' %}active{% endif %}">Store</a>
+                <a href="{% url 'practice_dashboard' %}" class="nav-link">Practice</a>
+
+                <div class="stats-pill">
+                    <span style="color: #ef4444;">❤️ {{ user.lives }}</span>
+                    <span style="width: 1px; height: 16px; background: rgba(0,0,0,0.1);"></span>
+                    <span style="color: #f59e0b;">💰 {{ user.coins }}</span>
+                </div>
+
+                <div style="margin-left: 1rem; position: relative;" class="dropdown">
+                    {% has_unread_messages user as unread_candidate %}
+                    <button class="profile-btn">
+                        {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        {% else %}
+                        {{ user.username.0|upper }}
+                        {% endif %}
+                    </button>
+                    {% if unread_candidate %}
+                    <span class="notification-dot"></span>
+                    {% endif %}
+                    <div class="dropdown-content">
+                        <a href="{% url 'profile' %}">Profile</a>
+                        <a href="{% url 'inbox' %}">Inbox</a>
+                        <form action="{% url 'logout' %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit">Log Out</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <a href="{% url 'login' %}" class="nav-link">Log In</a>
+                <a href="{% url 'role_selection' %}" class="btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Sign
+                    Up</a>
+                {% endif %}
             </div>
-            <ul>
-                <li><a href="{% url 'arena_home' %}">Arena</a></li>
-                <li><a href="{% url 'store' %}">Store</a></li>
-                <li><a href="{% url 'profile' %}">Profile</a></li>
-                <li>
-                    <form action="{% url 'logout' %}" method="post" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit"
-                            style="background:none; border:none; cursor:pointer; font:inherit; color:inherit; padding:0;">Logout</button>
-                    </form>
-                </li>
-            </ul>
-            {% else %}
-            <ul style="margin-right: 1rem;">
-                <li><a href="{% url 'home' %}#features">Features</a></li>
-                <li><a href="{% url 'home' %}#testimonials">Success Stories</a></li>
-                <li><a href="{% url 'home' %}#faq">FAQ</a></li>
-            </ul>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <a href="{% url 'login' %}"
-                    style="text-decoration: none; color: var(--text-color); font-weight: 500;">Sign In</a>
-                <a href="{% url 'onboarding_status' %}" class="btn">Get Started</a>
-            </div>
-            {% endif %}
         </nav>
     </header>
 

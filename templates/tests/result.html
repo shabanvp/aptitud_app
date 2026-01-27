@@ -34,8 +34,10 @@
             {% for item in results_details %}
             <div
                 style="background: var(--bg-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; border-left: 4px solid {% if item.is_correct %}#10b981{% else %}#ef4444{% endif %}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <p style="font-weight: 600; margin-bottom: 0.75rem; color: var(--text-color);">{{ forloop.counter }}. {{
-                    item.question.text }}</p>
+                <p style="font-weight: 600; margin-bottom: 0.75rem; color: var(--text-color);">
+                    <span>{{ forloop.counter }}.</span>
+                    <span>{{ item.question.text }}</span>
+                </p>
 
                 <div style="font-size: 0.95rem; margin-bottom: 0.5rem;">
                     <span style="color: #64748b;">Your Answer:</span>

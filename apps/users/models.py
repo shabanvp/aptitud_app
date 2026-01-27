@@ -12,6 +12,31 @@ class CustomUser(AbstractUser):
     # Onboarding Fields
     current_status = models.CharField(max_length=50, blank=True)
     interested_field = models.CharField(max_length=255, blank=True)
+    
+    # Company Fields
+    is_company = models.BooleanField(default=False)
+    hiring_focus = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
         return self.username
+
+class Conversation(models.Model):
+    participants = models.ManyToManyField(CustomUser, related_name='conversations')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Conversation {self.id}"
+
+class Message(models.Model):
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
+    sender = models.ForeignKey(CustomUser, related_name='sent_messages', on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"Message from {self.sender.username} at {self.timestamp}"

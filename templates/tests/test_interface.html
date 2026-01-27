@@ -1,80 +1,223 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div style="max-width: 800px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+<div style="max-width: 800px; margin: 0 auto; padding: 1rem;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div>
-            <h2>{{ category.name }} Assessment</h2>
-            <span style="background: #e0e7ff; padding: 4px 8px; border-radius: 4px; font-size: 0.9rem;">{{
-                questions|length }} Questions</span>
+            <h2 style="margin: 0;">{{ category.name }}</h2>
+            <div style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;">
+                Question <span id="current-q-num">1</span> of {{ questions|length }}
+            </div>
         </div>
-        <div id="timer" style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color);">10:00</div>
+        <div class="timer-badge">
+            <span style="font-size: 1.25rem;">⏱️</span>
+            <span id="timer" style="font-weight: 700; font-family: monospace; font-size: 1.5rem;">30</span>s
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div
+        style="width: 100%; background: #e2e8f0; height: 6px; border-radius: 3px; margin-bottom: 2rem; overflow: hidden;">
+        <div id="progress-bar"
+            style="width: 0%; height: 100%; background: var(--primary-color); transition: width 0.3s;"></div>
     </div>
 
     <form method="post" action="{% url 'submit_test' %}" id="testForm">
         {% csrf_token %}
 
         {% for question in questions %}
-        <div class="card" style="margin-bottom: 1.5rem;">
-            <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem;">
-                Q{{ forloop.counter }}. {{ question.text }}
+        <div class="question-slide" id="slide-{{ forloop.counter }}" style="display: none;">
+            <!-- Question Card -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5;">
+                    {{ question.text }}
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% for option in question.options.all %}
+                    <label class="option-label" data-q-index="{{ forloop.parentloop.counter }}">
+                        <!-- Use loop counter for unique naming across duplicates -->
+                        <input type="radio" name="answer_{{ forloop.parentloop.counter }}" value="{{ option.id }}"
+                            style="margin-right: 0.75rem;">
+                        <span style="font-size: 1rem;">{{ option.text }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                {% for option in question.options.all %}
-                <label
-                    style="border: 1px solid #d1d5db; padding: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
-                    class="option-label">
-                    <input type="radio" name="question_{{ question.id }}" value="{{ option.id }}"
-                        style="margin-right: 0.5rem;">
-                    {{ option.text }}
-                </label>
-                {% endfor %}
+            <!-- Action Buttons -->
+            <div style="display: flex; justify-content: flex-end;">
+                {% if not forloop.last %}
+                <button type="button" class="btn" onclick="nextQuestion()">Next Question ➜</button>
+                {% else %}
+                <button type="submit" class="btn btn-primary" style="background: #10b981;">Submit Test</button>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
-
-        <div style="text-align: right;">
-            <button type="submit" class="btn">Submit Test</button>
-        </div>
     </form>
 </div>
 
+<style>
+    .timer-badge {
+        background: #fee2e2;
+        color: #ef4444;
+        padding: 0.5rem 1rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1);
+    }
+
+    .option-label {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: white;
+    }
+
+    .option-label:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+
+    /* Selected state handled by JS */
+    .option-selected {
+        border-color: var(--primary-color) !important;
+        background: #eef2ff !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    /* Animation */
+    .question-slide {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    [data-theme="dark"] .option-label {
+        background: rgba(30, 41, 59, 0.6);
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #f1f5f9;
+    }
+
+    [data-theme="dark"] .option-label:hover {
+        background: rgba(30, 41, 59, 0.9);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    [data-theme="dark"] .option-selected {
+        background: rgba(79, 70, 229, 0.2) !important;
+        border-color: #818cf8 !important;
+    }
+</style>
+
 <script>
-    // Simple Timer (10 minutes)
-    let timeLeft = 600; // seconds
-    const timerDisplay = document.getElementById('timer');
+    let currentQuestion = 1;
+    const totalQuestions = {{ questions| length }};
+    const timeLimit = 30; // 30 seconds per question
+    let timeLeft = timeLimit;
+    let timerInterval;
 
-    const interval = setInterval(() => {
-        timeLeft--;
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
+    function init() {
+        showQuestion(1);
+        startTimer();
+    }
 
-        timerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    function showQuestion(n) {
+        // Hide all slides
+        document.querySelectorAll('.question-slide').forEach(el => el.style.display = 'none');
 
-        if (timeLeft <= 0) {
-            clearInterval(interval);
+        // Show target slide
+        const slide = document.getElementById(`slide-${n}`);
+        if (slide) {
+            slide.style.display = 'block';
+
+            // Update UI
+            document.getElementById('current-q-num').innerText = n;
+            const progress = ((n - 1) / totalQuestions) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+        }
+    }
+
+    function startTimer() {
+        timeLeft = timeLimit;
+        updateTimerDisplay();
+
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+
+            if (timeLeft <= 0) {
+                // Time's up!
+                clearInterval(timerInterval);
+
+                if (currentQuestion < totalQuestions) {
+                    nextQuestion(true); // Auto-advance
+                } else {
+                    document.getElementById('testForm').submit();
+                }
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const el = document.getElementById('timer');
+        el.innerText = timeLeft;
+        if (timeLeft <= 10) {
+            el.style.color = '#dc2626'; // Darker red warning
+        } else {
+            el.style.color = '#ef4444';
+        }
+    }
+
+    function nextQuestion(autoArgs = false) {
+        if (currentQuestion < totalQuestions) {
+            currentQuestion++;
+            showQuestion(currentQuestion);
+            startTimer(); // Reset timer for new question
+        } else {
+            // Last question submit
             document.getElementById('testForm').submit();
         }
-    }, 1000);
+    }
 
-    // Option selection styling
-    const radios = document.querySelectorAll('input[type="radio"]');
-    radios.forEach(radio => {
+    // Option Styling Logic
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', function () {
-            // Reset all in this group
+            const index = this.parentElement.getAttribute('data-q-index');
             const name = this.name;
-            document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
-                r.parentElement.style.borderColor = '#d1d5db';
-                r.parentElement.style.backgroundColor = 'transparent';
+
+            // Clear styles for this group
+            document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+                input.parentElement.classList.remove('option-selected');
             });
 
-            // Highlight selected
+            // Set style for selected
             if (this.checked) {
-                this.parentElement.style.borderColor = '#4f46e5';
-                this.parentElement.style.backgroundColor = '#eef2ff';
+                this.parentElement.classList.add('option-selected');
             }
         });
     });
+
+    // Start on load
+    document.addEventListener('DOMContentLoaded', init);
 </script>
 {% endblock %}

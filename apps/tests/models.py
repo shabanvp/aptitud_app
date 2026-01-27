@@ -42,6 +42,7 @@ class TestAttempt(models.Model):
         ('TOURNAMENT', 'Tournament'),
     ]
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='test_attempts')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     score = models.IntegerField()
     total_questions = models.IntegerField()
     coins_earned = models.IntegerField(default=0)

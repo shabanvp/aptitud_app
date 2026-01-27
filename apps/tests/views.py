@@ -19,14 +19,47 @@ def start_test(request, category_slug):
         return render(request, 'tests/no_lives.html')
 
     category = get_object_or_404(Category, slug=category_slug)
-    # Get random questions (e.g., 5)
-    questions = list(Question.objects.filter(category=category))
-    if len(questions) > 5:
-        questions = random.sample(questions, 5)
+    # Get questions (target 10)
+    all_questions = list(Question.objects.filter(category=category))
     
-    # Store questions in session
+    if not all_questions:
+        # Handle case with 0 questions gracefully (perhaps redirect or show empty)
+        # For now, let's just return empty list to template, template handles it
+        questions = []
+    elif len(all_questions) >= 10:
+        questions = random.sample(all_questions, 10)
+    else:
+        # Not enough questions, fill with duplicates
+        questions = all_questions[:] # Start with all unique ones
+        while len(questions) < 10:
+            questions.append(random.choice(all_questions))
+            
+        # Shuffle to mix duplicates
+        random.shuffle(questions)
+    
+    # Store questions in session - store separate entry for distinct indices if needed
+    # But since we just need IDs for checking, and we allow duplicates, logic needs to be robust.
+    # The submit view iterates over session['test_questions']. 
+    # If we have [1, 2, 1], the submit view will check q_1, q_2, q_1. 
+    # The form needs to handle this.
+    # Actually, form input names usually use question ID. duplicate IDs in form will be tricky.
+    # Better approach: Generate unique 'instance IDs' or just use list index in form.
+    # Let's see submit_test. It gets `question_{q_id}`.
+    # If we have duplicate Question 1, both inputs will be named `question_1`.
+    # HTML form will send `question_1` twice? Or last one wins?
+    # FIX: We should probably not allow exact duplicates if possible, or handle them.
+    # User said "allow questions to repeat". 
+    # To handle repeats in a form properly, we should use a custom index for the field name.
+    # e.g. `question_{index}_{q_id}`.
+    
+    # Let's adjust the session storage to store full structure or just rely on list order.
+    # For now, let's just save list of IDs.
+    
     request.session['test_questions'] = [q.id for q in questions]
     request.session['test_category'] = category.slug
+    
+    # Pass 1-based index to template for identifying specific instance of a question
+    # (Though template loop counter does this)
     
     return render(request, 'tests/test_interface.html', {'questions': questions, 'category': category})
 
@@ -41,13 +74,16 @@ def submit_test(request):
         score = 0
         total = len(question_ids)
         
-        for q_id in question_ids:
+        for index, q_id in enumerate(question_ids, start=1):
             try:
                 question = Question.objects.get(id=q_id)
             except Question.DoesNotExist:
                 continue
                 
-            selected_option_id = request.POST.get(f'question_{q_id}')
+            # Changed to look for unique key based on position (e.g. answer_1, answer_2)
+            # Template must update to use name="answer_{{ forloop.counter }}"
+            selected_option_id = request.POST.get(f'answer_{index}')
+            
             selected_option = None
             if selected_option_id:
                 selected_option = Option.objects.filter(id=selected_option_id).first()
@@ -85,8 +121,14 @@ def submit_test(request):
         user.save()
         
         # Save Attempt
+        test_category_slug = request.session.get('test_category')
+        test_category = None
+        if test_category_slug:
+             test_category = Category.objects.filter(slug=test_category_slug).first()
+
         TestAttempt.objects.create(
             user=user,
+            category=test_category,
             score=score,
             total_questions=total,
             coins_earned=coins,

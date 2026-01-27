@@ -198,7 +198,7 @@
             {% if user.is_authenticated %}
             <a href="{% url 'practice_dashboard' %}" class="btn">Go to Dashboard</a>
             {% else %}
-            <a href="{% url 'onboarding_status' %}" class="btn">Start Playing Now</a>
+            <a href="{% url 'role_selection' %}" class="btn">Get Started</a>
             <a href="{% url 'login' %}" class="btn btn-secondary">Log In</a>
             {% endif %}
         </div>
@@ -262,7 +262,7 @@
 <div class="cta-section">
     <h2 style="margin-top: 0; font-size: 2.5rem;">Ready to Level Up?</h2>
     <p style="font-size: 1.2rem; margin-bottom: 2rem;">Join thousands of students mastering aptitude today.</p>
-    <a href="{% url 'onboarding_status' %}" class="btn" style="background: white; color: var(--primary-color);">Create
+    <a href="{% url 'role_selection' %}" class="btn" style="background: white; color: var(--primary-color);">Create
         Free Account</a>
 </div>
 

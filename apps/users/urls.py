@@ -5,9 +5,17 @@ from . import views
 urlpatterns = [
     path('', views.home, name='home'),
     path('get-started/', views.onboarding_status, name='onboarding_status'),
-    path('get-started/interest/', views.onboarding_interest, name='onboarding_interest'),
+    path('get-started/interface/', views.onboarding_interest, name='onboarding_interest'),
+    path('role-selection/', views.role_selection, name='role_selection'),
+    path('company-onboarding/', views.company_onboarding, name='company_onboarding'),
+    path('company-dashboard/', views.company_dashboard, name='company_dashboard'),
     path('register/', views.register, name='register'),
     path('login/', auth_views.LoginView.as_view(template_name='users/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('profile/', views.profile, name='profile'),
+    path('profile/<str:username>/', views.profile, name='user_profile'),
+    path('inbox/', views.inbox, name='inbox'),
+    path('chat/start/<str:username>/', views.start_chat, name='start_chat'),
+    path('chat/<int:conversation_id>/', views.chat_detail, name='chat_detail'),
+    path('chat/<int:conversation_id>/send/', views.send_message, name='send_message'),
 ]
