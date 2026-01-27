@@ -1,0 +1,26 @@
+[
+    {
+        "text": "What is the typical time complexity of accessing an element in an array?",
+        "category": "General Aptitude",
+        "difficulty": "EASY",
+        "explanation": "Accessing an array element by index is a constant time operation.",
+        "options": [
+            {"text": "O(1)", "is_correct": true},
+            {"text": "O(n)", "is_correct": false},
+            {"text": "O(log n)", "is_correct": false},
+            {"text": "O(n^2)", "is_correct": false}
+        ]
+    },
+    {
+        "text": "If a train 100m long crosses a bridge 200m long in 20 seconds, what is the speed of the train?",
+        "category": "General Aptitude",
+        "difficulty": "MEDIUM",
+        "explanation": "Total distance = Length of train + Length of bridge = 100 + 200 = 300m. Speed = Distance/Time = 300/20 = 15 m/s.",
+        "options": [
+            {"text": "10 m/s", "is_correct": false},
+            {"text": "15 m/s", "is_correct": true},
+            {"text": "20 m/s", "is_correct": false},
+            {"text": "25 m/s", "is_correct": false}
+        ]
+    }
+]
