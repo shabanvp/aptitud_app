@@ -140,34 +140,77 @@ def import_csv(file_path):
                     question_text = get_val('Question')
                     if not question_text: continue
 
-                    cat_name = 'General Aptitude' 
+                    # Use Category from CSV if available, else default
+                    cat_val = get_val('Category')
+                    cat_name = cat_val if cat_val else 'General Aptitude'
                     category = get_or_create_category(cat_name)
-                    difficulty = 'MEDIUM'
-                    explanation = ''
                     
-                    # Clean the answer key (e.g. "C,,,,,," -> "C")
+                    difficulty = get_val('Difficulty') or 'MEDIUM'
+                    difficulty = difficulty.upper()
+                    
+                    explanation = get_val('Explanation') or ''
+                    
+                    # Clean the answer key
                     raw_ans = get_val('Answer')
-                    correct_letter = clean_text(raw_ans).upper()
-                    # Sometimes answer is like "Option C", just take last char or first? usually "C"
+                    correct_ans_clean = clean_text(raw_ans)
+                    correct_letter = correct_ans_clean.upper()
+                    
+                    # Handle "Option C" case
                     if len(correct_letter) > 1 and correct_letter.startswith('OPTION'):
                         correct_letter = correct_letter.split()[-1]
                     
                     options_data = []
                     mapping = {'A': 'Option A', 'B': 'Option B', 'C': 'Option C', 'D': 'Option D'}
                     
-                    valid_options = True
+                    # First pass: collect options and try to find which one is the answer
+                    # If correct_letter is A/B/C/D, easy.
+                    # If not, try to match text.
+                    
+                    temp_options = [] # list of (letter, text)
                     for letter, key_name in mapping.items():
                         opt_text = get_val(key_name)
-                        if not opt_text: 
-                            if letter == correct_letter: 
-                                valid_options = False
-                            continue
-                        
-                        is_correct = (letter == correct_letter)
-                        options_data.append({'text': clean_text(opt_text), 'is_correct': is_correct})
+                        clean_opt = clean_text(opt_text)
+                        temp_options.append((letter, clean_opt))
                     
-                    if not valid_options or not options_data:
-                        # print(f"Skipping row {row_idx}: invalid options or correct answer missing ({correct_letter}).")
+                    # Determine which is correct
+                    correct_index = -1
+                    
+                    # 1. Check strict letter match
+                    if correct_letter in mapping:
+                        # e.g. "B"
+                        options_data = []
+                        valid_options = True
+                        for letter, text in temp_options:
+                            if not text:
+                                if letter == correct_letter: valid_options = False
+                                continue
+                            is_correct = (letter == correct_letter)
+                            options_data.append({'text': text, 'is_correct': is_correct})
+                    else:
+                        # 2. Check text match
+                        # We compare correct_ans_clean (case insensitive) with options
+                        matched = False
+                        options_data = []
+                        valid_options = True
+                        
+                        # We need to build the list and mark one as correct
+                        for letter, text in temp_options:
+                            if not text: continue
+                            
+                            is_correct = False
+                            # Compare text
+                            if text.lower() == correct_ans_clean.lower():
+                                is_correct = True
+                                matched = True
+                            
+                            options_data.append({'text': text, 'is_correct': is_correct})
+                        
+                        if not matched:
+                            # print(f"Warning: Could not match answer '{raw_ans}' to options for question: {question_text[:30]}...")
+                            # Fallback: maybe it's just index? (unlikely if not A-D)
+                            pass
+
+                    if not options_data:
                         continue
                         
                 else:
