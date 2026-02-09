@@ -1,7 +1,15 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from .forms import CustomUserCreationForm
+from django.db.models import Avg, Count, F, Q
+from django.core.serializers.json import DjangoJSONEncoder
+from django.http import JsonResponse
+from django.utils import timezone
+import json
+
+from users.forms import CustomUserCreationForm, CertificateForm
+from users.models import CustomUser, Conversation, Message, Certificate
+from tests.models import TestAttempt
 
 def onboarding_status(request):
     if request.method == 'POST':
@@ -71,7 +79,7 @@ def register(request):
         form = CustomUserCreationForm()
     return render(request, 'users/register.html', {'form': form})
 
-from django.db.models import F
+
 @login_required
 def company_dashboard(request):
     if not request.user.is_company:
@@ -83,14 +91,6 @@ def company_dashboard(request):
     candidates = CustomUser.objects.filter(is_company=False).order_by('-level', '-exp')[:50]
     
     return render(request, 'users/company_dashboard.html', {'candidates': candidates})
-
-import json
-from django.db.models import Avg, Count
-from django.core.serializers.json import DjangoJSONEncoder
-from tests.models import TestAttempt
-from .models import CustomUser
-
-from django.shortcuts import get_object_or_404
 
 @login_required
 def profile(request, username=None):
@@ -130,12 +130,29 @@ def profile(request, username=None):
         context['candidate'] = user
         return render(request, 'users/candidate_profile.html', context)
         
+    # Get user's certificates
+    context['certificates'] = user.certificates.all().order_by('-uploaded_at')
+    context['certificate_form'] = CertificateForm()
+
     return render(request, 'users/profile.html', context)
 
-from .models import CustomUser, Conversation, Message
-from django.db.models import Q
-from django.http import JsonResponse
-from django.utils import timezone
+@login_required
+def upload_certificate(request):
+    if request.method == 'POST':
+        form = CertificateForm(request.POST, request.FILES)
+        if form.is_valid():
+            certificate = form.save(commit=False)
+            certificate.user = request.user
+            certificate.save()
+    return redirect('profile')
+
+@login_required
+def delete_certificate(request, certificate_id):
+    if request.method == 'POST':
+        certificate = get_object_or_404(Certificate, id=certificate_id)
+        if certificate.user == request.user:
+            certificate.delete()
+    return redirect('profile')
 
 @login_required
 def inbox(request):

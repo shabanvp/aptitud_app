@@ -1,0 +1,11 @@
+{
+    "python.defaultInterpreterPath": "C:\\Users\\ROSHAN\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "python.analysis.extraPaths": [
+        "d:\\data_set\\4th sem pro\\Aptitude_GO\\apps"
+    ],
+    "python.autoComplete.extraPaths": [
+        "d:\\data_set\\4th sem pro\\Aptitude_GO\\apps"
+    ],
+    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.diagnosticMode": "workspace"
+}
