@@ -123,7 +123,6 @@ def profile(request, username=None):
         'chart_scores': json.dumps(scores, cls=DjangoJSONEncoder),
         'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
         'cat_scores': json.dumps(cat_scores, cls=DjangoJSONEncoder),
-        'user': user,
     }
     
     # If viewing someone else's profile (e.g., Recruiter viewing Candidate)

@@ -18,9 +18,11 @@ class CertificateForm(forms.ModelForm):
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'current_status', 'interested_field', 'organization']
+        fields = ['first_name', 'last_name', 'email', 'current_status', 'interested_field', 'organization', 'linkedin_url', 'github_url']
         labels = {
             'organization': 'Place of Work / College',
             'current_status': 'Current Job / Status',
-            'interested_field': 'Field of Interest'
+            'interested_field': 'Field of Interest',
+            'linkedin_url': 'LinkedIn Profile URL',
+            'github_url': 'GitHub Profile URL'
         }

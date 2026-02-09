@@ -42,7 +42,19 @@
                 <input type="text" name="current_status" id="id_current_status"
                     value="{{ form.current_status.value|default:'' }}"
                     placeholder="e.g. Student, Software Engineer, Intern" class="form-control"
+                    list="status-options"
                     style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+                <datalist id="status-options">
+                    <option value="Student">
+                    <option value="Intern">
+                    <option value="Software Engineer">
+                    <option value="Data Scientist">
+                    <option value="Product Manager">
+                    <option value="Designer">
+                    <option value="Teacher">
+                    <option value="Freelancer">
+                    <option value="Looking for Work">
+                </datalist>
             </div>
 
             <div>
@@ -51,7 +63,22 @@
                 <input type="text" name="organization" id="id_organization"
                     value="{{ form.organization.value|default:'' }}" placeholder="e.g. XYZ University, Tech Corp"
                     class="form-control"
+                    list="org-options"
                     style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+                <datalist id="org-options">
+                    <option value="IIT Bombay">
+                    <option value="IIT Delhi">
+                    <option value="BITS Pilani">
+                    <option value="NIT Trichy">
+                    <option value="Anna University">
+                    <option value="Delhi University">
+                    <option value="Google">
+                    <option value="Microsoft">
+                    <option value="Amazon">
+                    <option value="TCS">
+                    <option value="Infosys">
+                    <option value="Wipro">
+                </datalist>
             </div>
 
             <div>
@@ -60,6 +87,36 @@
                 <input type="text" name="interested_field" id="id_interested_field"
                     value="{{ form.interested_field.value|default:'' }}"
                     placeholder="e.g. Data Science, Web Development" class="form-control"
+                    list="interest-options"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+                 <datalist id="interest-options">
+                    <option value="Software Development">
+                    <option value="Data Science">
+                    <option value="Machine Learning">
+                    <option value="Web Development">
+                    <option value="Mobile App Development">
+                    <option value="Cybersecurity">
+                    <option value="Cloud Computing">
+                    <option value="Digital Marketing">
+                    <option value="Finance">
+                    <option value="Consulting">
+                </datalist>
+            </div>
+
+            <!-- Social Links -->
+            <div>
+                <label for="id_linkedin_url" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">LinkedIn Profile URL</label>
+                <input type="url" name="linkedin_url" id="id_linkedin_url"
+                    value="{{ form.linkedin_url.value|default:'' }}"
+                    placeholder="https://linkedin.com/in/..." class="form-control"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+            </div>
+
+            <div>
+                <label for="id_github_url" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">GitHub Profile URL</label>
+                <input type="url" name="github_url" id="id_github_url"
+                    value="{{ form.github_url.value|default:'' }}"
+                    placeholder="https://github.com/..." class="form-control"
                     style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
 
