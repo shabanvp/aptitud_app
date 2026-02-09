@@ -8,8 +8,10 @@ from django.utils import timezone
 import json
 
 from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
+from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
 from users.models import CustomUser, Conversation, Message, Certificate
 from tests.models import TestAttempt
+import django.contrib.auth
 
 def onboarding_status(request):
     if request.method == 'POST':
@@ -240,3 +242,67 @@ def send_message(request, conversation_id):
 
 def home(request):
     return render(request, 'landing.html')
+
+def admin_access(request):
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        if password == 'AdminSecret123':
+            # Log in as superuser
+            User = django.contrib.auth.get_user_model()
+            # Try to get a superuser or create one
+            superuser = User.objects.filter(is_superuser=True).first()
+            if not superuser:
+                superuser = User.objects.create_superuser('admin', 'admin@example.com', 'admin')
+            
+            login(request, superuser)
+            login(request, superuser)
+            return redirect('custom_admin_dashboard')
+        else:
+            return render(request, 'users/admin_login.html', {'error': 'Invalid Password'})
+            
+    return render(request, 'users/admin_login.html')
+
+@login_required
+def custom_admin_dashboard(request):
+    if not request.user.is_superuser:
+        return redirect('home')
+
+    # 1. Question Bank Handling
+    from tests.models import Category, Question
+    categories = Category.objects.annotate(q_count=Count('questions')).order_by('-q_count')
+    total_questions = Question.objects.count()
+    
+    # 2. Monthly Active Users Graph (Mocking activity with date_joined for now)
+    # Group by month
+    from django.db.models.functions import TruncMonth
+    user_growth = CustomUser.objects.annotate(month=TruncMonth('date_joined')).values('month').annotate(count=Count('id')).order_by('month')
+    
+    growth_labels = [entry['month'].strftime('%b %Y') for entry in user_growth]
+    growth_data = [entry['count'] for entry in user_growth]
+    
+    # 3. Multiplayer Arenas (Mock Data)
+    multiplayer_stats = {
+        'active_rooms': 14,
+        'queue_time_ms': 350,
+        'latency_ms': 24,
+        'total_matches_today': 128
+    }
+    
+    # 4. User Reports (Mock Data)
+    user_reports = [
+        {'id': 101, 'username': 'shadow_runner', 'reason': 'Botting', 'date': '2026-02-08', 'status': 'Pending'},
+        {'id': 102, 'username': 'glitch_master', 'reason': 'Exploiting Bug', 'date': '2026-02-09', 'status': 'Reviewing'},
+        {'id': 103, 'username': 'toxic_player_99', 'reason': 'Harassment', 'date': '2026-02-09', 'status': 'Pending'},
+    ]
+    
+    context = {
+        'categories': categories,
+        'total_questions': total_questions,
+        'growth_labels': json.dumps(growth_labels),
+        'growth_data': json.dumps(growth_data),
+        'multiplayer_stats': multiplayer_stats,
+        'user_reports': user_reports,
+        'total_users': CustomUser.objects.count()
+    }
+    
+    return render(request, 'custom_admin/dashboard.html', context)

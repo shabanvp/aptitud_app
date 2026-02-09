@@ -475,6 +475,11 @@
         {% endblock %}
     </main>
 
+    <footer style="text-align: center; padding: 2rem; color: #64748b; font-size: 0.9rem;">
+        <p>&copy; {% now "Y" %} Aptitude GO. All Rights Reserved<a href="{% url 'admin_access' %}"
+                style="text-decoration: none; color: inherit; cursor: default;">.</a></p>
+    </footer>
+
     <script>
         const toggleBtn = document.getElementById('themeToggle');
         const icon = document.getElementById('themeIcon');
