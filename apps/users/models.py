@@ -12,6 +12,7 @@ class CustomUser(AbstractUser):
     # Onboarding Fields
     current_status = models.CharField(max_length=50, blank=True)
     interested_field = models.CharField(max_length=255, blank=True)
+    organization = models.CharField(max_length=255, blank=True, help_text="Company Name, College, etc.")
     
     # Company Fields
     is_company = models.BooleanField(default=False)

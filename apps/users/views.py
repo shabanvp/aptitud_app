@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 import json
 
-from users.forms import CustomUserCreationForm, CertificateForm
+from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
 from users.models import CustomUser, Conversation, Message, Certificate
 from tests.models import TestAttempt
 
@@ -123,6 +123,7 @@ def profile(request, username=None):
         'chart_scores': json.dumps(scores, cls=DjangoJSONEncoder),
         'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
         'cat_scores': json.dumps(cat_scores, cls=DjangoJSONEncoder),
+        'user': user,
     }
     
     # If viewing someone else's profile (e.g., Recruiter viewing Candidate)
@@ -135,6 +136,18 @@ def profile(request, username=None):
     context['certificate_form'] = CertificateForm()
 
     return render(request, 'users/profile.html', context)
+
+@login_required
+def edit_profile(request):
+    if request.method == 'POST':
+        form = UserUpdateForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect('profile')
+    else:
+        form = UserUpdateForm(instance=request.user)
+    
+    return render(request, 'users/edit_profile.html', {'form': form})
 
 @login_required
 def upload_certificate(request):
