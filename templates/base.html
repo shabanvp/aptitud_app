@@ -309,7 +309,8 @@
             display: none;
             position: absolute;
             right: 0;
-            top: 120%;
+            top: 100%;
+            margin-top: 0.5rem;
             background: var(--card-bg);
             min-width: 160px;
             box-shadow: var(--shadow);
@@ -317,6 +318,19 @@
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.5);
             z-index: 200;
+        }
+
+        /* Bridge the gap using parent pseudo-element */
+        .dropdown::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 160px;
+            /* Match min-width of content */
+            height: 1.5rem;
+            /* Covers the margin + play area */
+            background: transparent;
         }
 
         .dropdown:hover .dropdown-content {
