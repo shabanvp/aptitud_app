@@ -8,8 +8,10 @@ from django.utils import timezone
 import json
 
 from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
+from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
 from users.models import CustomUser, Conversation, Message, Certificate
 from tests.models import TestAttempt
+import django.contrib.auth
 
 def onboarding_status(request):
     if request.method == 'POST':
@@ -86,11 +88,16 @@ def company_dashboard(request):
         return redirect('practice_dashboard')
         
     # Recruiters want to see top talent
-    # Order by Level (desc), then EXP (desc)
-    # We can also filter by their hiring focus if we implement matching logic later
     candidates = CustomUser.objects.filter(is_company=False).order_by('-level', '-exp')[:50]
     
-    return render(request, 'users/company_dashboard.html', {'candidates': candidates})
+    # Calculate new candidates in the last 7 days
+    seven_days_ago = timezone.now() - timezone.timedelta(days=7)
+    new_candidates_count = CustomUser.objects.filter(is_company=False, date_joined__gte=seven_days_ago).count()
+    
+    return render(request, 'users/company_dashboard.html', {
+        'candidates': candidates,
+        'new_candidates_count': new_candidates_count
+    })
 
 @login_required
 def profile(request, username=None):
@@ -98,42 +105,70 @@ def profile(request, username=None):
         user = get_object_or_404(CustomUser, username=username)
     else:
         user = request.user
-        
-    attempts = TestAttempt.objects.filter(user=user).order_by('completed_at')
     
-    # 1. Progress History (Line Chart)
-    # Get last 20 attempts for cleaner graph
-    recent_attempts = attempts.reverse()[:20][::-1]
-    
-    dates = [a.completed_at.strftime('%d %b') for a in recent_attempts]
-    scores = [a.score for a in recent_attempts]
-    
-    # 2. Subject Performance (Radar/Bar)
-    # Aggregate avg score per category
-    cat_stats = TestAttempt.objects.filter(user=user).values('category__name').annotate(
-        avg_score=Avg('score'),
-        count=Count('id')
-    ).exclude(category__isnull=True)
-    
-    cat_labels = [c['category__name'] for c in cat_stats]
-    cat_scores = [round(c['avg_score'], 1) for c in cat_stats]
-
-    context = {
-        'chart_dates': json.dumps(dates, cls=DjangoJSONEncoder),
-        'chart_scores': json.dumps(scores, cls=DjangoJSONEncoder),
-        'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
-        'cat_scores': json.dumps(cat_scores, cls=DjangoJSONEncoder),
-        'user': user,
-    }
+    context = {}
     
     # If viewing someone else's profile (e.g., Recruiter viewing Candidate)
     if username and username != request.user.username:
-        context['candidate'] = user
-        return render(request, 'users/candidate_profile.html', context)
+        # Standard candidate view logic
+        attempts = TestAttempt.objects.filter(user=user).order_by('completed_at')
+        recent_attempts = attempts.reverse()[:20][::-1]
+        dates = [a.completed_at.strftime('%d %b') for a in recent_attempts]
+        scores = [a.score for a in recent_attempts]
         
-    # Get user's certificates
-    context['certificates'] = user.certificates.all().order_by('-uploaded_at')
-    context['certificate_form'] = CertificateForm()
+        cat_stats = TestAttempt.objects.filter(user=user).values('category__name').annotate(
+            avg_score=Avg('score'), count=Count('id')
+        ).exclude(category__isnull=True)
+        cat_labels = [c['category__name'] for c in cat_stats]
+        cat_scores = [round(c['avg_score'], 1) for c in cat_stats]
+
+        context.update({
+            'chart_dates': json.dumps(dates, cls=DjangoJSONEncoder),
+            'chart_scores': json.dumps(scores, cls=DjangoJSONEncoder),
+            'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
+            'cat_scores': json.dumps(cat_scores, cls=DjangoJSONEncoder),
+            'candidate': user
+        })
+        return render(request, 'users/candidate_profile.html', context)
+    
+    # Viewing Own Profile
+    if user.is_superuser:
+        # ADMIN PROFILE LOGIC
+        from django.contrib.admin.models import LogEntry
+        # Fetch recent admin actions
+        admin_logs = LogEntry.objects.filter(user=user).select_related('content_type').order_by('-action_time')[:10]
+        context['admin_logs'] = admin_logs
+        
+    elif user.is_company:
+        # COMPANY PROFILE LOGIC
+        # 1. Conversations Count
+        conv_count = Conversation.objects.filter(participants=user).count()
+        # 2. Candidates Contacted (Distinct users in conversations excluding self)
+        # simplistic approach for now: just using conversation count as proxy or fetching
+        
+        context['conv_count'] = conv_count
+        # We can add more stats later
+    else:
+        # CANDIDATE PROFILE LOGIC
+        attempts = TestAttempt.objects.filter(user=user).order_by('completed_at')
+        recent_attempts = attempts.reverse()[:20][::-1]
+        dates = [a.completed_at.strftime('%d %b') for a in recent_attempts]
+        scores = [a.score for a in recent_attempts]
+        
+        cat_stats = TestAttempt.objects.filter(user=user).values('category__name').annotate(
+            avg_score=Avg('score'), count=Count('id')
+        ).exclude(category__isnull=True)
+        cat_labels = [c['category__name'] for c in cat_stats]
+        cat_scores = [round(c['avg_score'], 1) for c in cat_stats]
+
+        context.update({
+            'chart_dates': json.dumps(dates, cls=DjangoJSONEncoder),
+            'chart_scores': json.dumps(scores, cls=DjangoJSONEncoder),
+            'cat_labels': json.dumps(cat_labels, cls=DjangoJSONEncoder),
+            'cat_scores': json.dumps(cat_scores, cls=DjangoJSONEncoder),
+            'certificates': user.certificates.all().order_by('-uploaded_at'),
+            'certificate_form': CertificateForm()
+        })
 
     return render(request, 'users/profile.html', context)
 
@@ -240,4 +275,72 @@ def send_message(request, conversation_id):
     return redirect('chat_detail', conversation_id=conversation_id)
 
 def home(request):
+    if request.user.is_authenticated:
+        if request.user.is_superuser:
+            return redirect('custom_admin_dashboard')
+        if request.user.is_company:
+            return redirect('company_dashboard')
     return render(request, 'landing.html')
+
+def admin_access(request):
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        if password == 'AdminSecret123':
+            # Log in as superuser
+            User = django.contrib.auth.get_user_model()
+            # Try to get a superuser or create one
+            superuser = User.objects.filter(is_superuser=True).first()
+            if not superuser:
+                superuser = User.objects.create_superuser('admin', 'admin@example.com', 'admin')
+            
+            login(request, superuser)
+            login(request, superuser)
+            return redirect('custom_admin_dashboard')
+        else:
+            return render(request, 'users/admin_login.html', {'error': 'Invalid Password'})
+            
+    return render(request, 'users/admin_login.html')
+
+@login_required
+def custom_admin_dashboard(request):
+    if not request.user.is_superuser:
+        return redirect('home')
+
+    # 1. Overview Stats
+    from tests.models import Category, Question, TestAttempt
+    from gamification.models import StoreItem, UserItem
+    
+    total_users = CustomUser.objects.count()
+    total_questions = Question.objects.count()
+    total_tests_taken = TestAttempt.objects.count()
+    total_items_sold = UserItem.objects.count()
+    
+    # 2. Monthly Active Users Graph
+    from django.db.models.functions import TruncMonth
+    user_growth = CustomUser.objects.annotate(month=TruncMonth('date_joined')).values('month').annotate(count=Count('id')).order_by('month')
+    
+    growth_labels = [entry['month'].strftime('%b %Y') for entry in user_growth]
+    growth_data = [entry['count'] for entry in user_growth]
+    
+    # 3. Recent Users (Replacing Reports)
+    recent_users = CustomUser.objects.order_by('-date_joined')[:5]
+    
+    # 4. Popular Items (Replacing Multiplayer Stats)
+    popular_items = StoreItem.objects.annotate(sold_count=Count('useritem')).order_by('-sold_count')[:5]
+    
+    # 5. Question Bank Stats
+    categories = Category.objects.annotate(q_count=Count('questions')).order_by('-q_count')
+
+    context = {
+        'total_users': total_users,
+        'total_questions': total_questions,
+        'total_tests_taken': total_tests_taken,
+        'total_items_sold': total_items_sold,
+        'growth_labels': json.dumps(growth_labels),
+        'growth_data': json.dumps(growth_data),
+        'recent_users': recent_users,
+        'popular_items': popular_items,
+        'categories': categories,
+    }
+    
+    return render(request, 'custom_admin/dashboard.html', context)

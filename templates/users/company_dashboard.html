@@ -25,7 +25,7 @@
             <div style="color: #6b7280; font-size: 0.9rem;">Total Candidates</div>
         </div>
         <div class="card" style="text-align: center;">
-            <div style="font-size: 2rem; font-weight: 800; color: var(--accent-color);">15</div>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--accent-color);">{{ new_candidates_count }}</div>
             <div style="color: #6b7280; font-size: 0.9rem;">New This Week</div>
         </div>
         <div class="card" style="text-align: center;">
@@ -36,7 +36,7 @@
 
     <!-- Leaderboard Table -->
     <div class="card" style="padding: 0; overflow: hidden;">
-        <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+        <div class="dashboard-header">
             <h3 style="margin: 0;">Top Candidates</h3>
         </div>
 
@@ -83,8 +83,7 @@
                             <div style="font-weight: 600;">{{ candidate.exp }} XP</div>
                         </td>
                         <td style="padding: 1rem 1.5rem;">
-                            <span style="color: #64748b; font-size: 0.9rem;">{{
-                                candidate.current_status|default:"Student" }}</span>
+                            <span style="color: #64748b; font-size: 0.9rem;">{{ candidate.current_status|default:"Student" }}</span>
                         </td>
                         <td style="padding: 1rem 1.5rem;">
                             <a href="{% url 'user_profile' candidate.username %}" class="btn btn-secondary"
@@ -120,6 +119,17 @@
     [data-theme="dark"] .table-header {
         background: rgba(30, 41, 59, 1);
         color: #94a3b8;
+    }
+
+    .dashboard-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+
+    [data-theme="dark"] .dashboard-header {
+        background: rgba(30, 41, 59, 0.5);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 </style>
 {% endblock %}

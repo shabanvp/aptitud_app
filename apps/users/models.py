@@ -18,6 +18,10 @@ class CustomUser(AbstractUser):
     is_company = models.BooleanField(default=False)
     hiring_focus = models.CharField(max_length=255, blank=True)
 
+    # Social Links
+    linkedin_url = models.URLField(max_length=255, blank=True, null=True)
+    github_url = models.URLField(max_length=255, blank=True, null=True)
+
     def __str__(self):
         return self.username
 
@@ -50,3 +54,8 @@ class Certificate(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.user.username})"
+
+    @property
+    def is_image(self):
+        name = self.file.name.lower()
+        return name.endswith('.jpg') or name.endswith('.jpeg') or name.endswith('.png') or name.endswith('.webp')
