@@ -24,6 +24,11 @@ class Question(models.Model):
     difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default='MEDIUM')
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def is_coding_problem(self):
+        """Coding problems have only 1 placeholder option; MCQs have 2+."""
+        return self.options.count() <= 1
+
     def __str__(self):
         return self.text[:50]
 

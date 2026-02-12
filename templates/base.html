@@ -444,10 +444,6 @@
             }
         }
 
-        /* .dropdown:hover .dropdown-content {
-            display: block;
-        } Removed to use click handler */
-
         .dropdown-content a,
         .dropdown-content button {
             color: var(--text-color);
@@ -566,9 +562,9 @@
                     <span style="color: #f59e0b;">💰 {{ user.coins }}</span>
                 </div>
                 {% endif %}
-                
+
                 {% if user.is_superuser %}
-                 <a href="{% url 'custom_admin_dashboard' %}" class="nav-link">Admin Dashboard</a>
+                <a href="{% url 'custom_admin_dashboard' %}" class="nav-link">Admin Dashboard</a>
                 {% endif %}
 
                 <div style="margin-left: 1rem; position: relative;" class="dropdown">

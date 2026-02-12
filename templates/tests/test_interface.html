@@ -32,13 +32,27 @@
             {% csrf_token %}
 
             {% for question in questions %}
-            <div class="question-slide" id="slide-{{ forloop.counter }}" style="display: none;">
+            <div class="question-slide" id="slide-{{ forloop.counter }}"
+                data-is-coding="{{ question.is_coding_problem|lower }}" style="display: none;">
                 <!-- Question Card -->
                 <div class="card" style="margin-bottom: 2rem;">
-                    <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5;">
-                        {{ question.text }}
-                    </div>
+                    <div
+                        style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5; white-space: pre-wrap;">
+                        {{ question.text }}</div>
 
+                    {% if question.is_coding_problem %}
+                    <!-- Coding Problem: Text area for answer -->
+                    <div class="coding-answer-area">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                            <span style="font-size: 1.25rem;">💻</span>
+                            <span style="font-weight: 600; color: var(--text-color);">Type your answer / code
+                                below:</span>
+                        </div>
+                        <textarea name="code_answer_{{ forloop.counter }}" class="code-textarea" rows="10"
+                            placeholder="Write your solution here..." spellcheck="false"></textarea>
+                    </div>
+                    {% else %}
+                    <!-- MCQ: Radio button options -->
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                         {% for option in question.options.all %}
                         <label class="option-label" data-q-index="{{ forloop.parentloop.counter }}">
@@ -49,6 +63,7 @@
                         </label>
                         {% endfor %}
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- Action Buttons -->
@@ -135,10 +150,53 @@
 
     /* Anti-cheating: Prevent text selection */
     .no-select {
-        -webkit-user-select: none; /* Safari */
-        -moz-user-select: none;    /* Firefox */
-        -ms-user-select: none;     /* IE10+/Edge */
-        user-select: none;         /* Standard */
+        -webkit-user-select: none;
+        /* Safari */
+        -moz-user-select: none;
+        /* Firefox */
+        -ms-user-select: none;
+        /* IE10+/Edge */
+        user-select: none;
+        /* Standard */
+    }
+
+    /* Coding problem textarea */
+    .coding-answer-area {
+        margin-top: 1rem;
+    }
+
+    .code-textarea {
+        width: 100%;
+        min-height: 200px;
+        padding: 1rem;
+        font-family: 'Courier New', Consolas, monospace;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        background: #1e293b;
+        color: #e2e8f0;
+        resize: vertical;
+        outline: none;
+        transition: border-color 0.2s;
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        user-select: text;
+    }
+
+    .code-textarea:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    .code-textarea::placeholder {
+        color: #64748b;
+    }
+
+    [data-theme="dark"] .code-textarea {
+        background: #0f172a;
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #e2e8f0;
     }
 </style>
 
@@ -151,39 +209,53 @@
 ">
     <div style="font-size: 3rem; margin-bottom: 1rem;">🛡️</div>
     <h1 style="margin-bottom: 1rem;">Secure Test Environment</h1>
-    
-    <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%;">
-        <div class="step-item" id="step-fullscreen" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
-            <div class="step-icon" style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">1</div>
+
+    <div
+        style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%;">
+        <div class="step-item" id="step-fullscreen"
+            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+            <div class="step-icon"
+                style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                1</div>
             <div style="flex: 1;">
                 <h3 style="margin: 0; font-size: 1.1rem;">Full Screen Mode</h3>
-                <p style="margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem;">Test must be the only active window.</p>
+                <p style="margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem;">Test must be the only active window.
+                </p>
             </div>
             <button onclick="enableFullScreen()" class="btn btn-sm" id="btn-fullscreen">Enable</button>
             <span class="check-mark" style="display: none; color: #10b981; font-size: 1.5rem;">✓</span>
         </div>
 
-        <div class="step-item" id="step-proctor" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
-            <div class="step-icon" style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">2</div>
+        <div class="step-item" id="step-proctor"
+            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+            <div class="step-icon"
+                style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                2</div>
             <div style="flex: 1;">
                 <h3 style="margin: 0; font-size: 1.1rem;">Screen Monitoring</h3>
-                <p style="margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem;">You must share your <b>Entire Screen</b> for validation.</p>
+                <p style="margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem;">You must share your <b>Entire
+                        Screen</b> for validation.</p>
             </div>
             <button onclick="enableProctoring()" class="btn btn-sm" id="btn-proctor">Start</button>
             <span class="check-mark" style="display: none; color: #10b981; font-size: 1.5rem;">✓</span>
         </div>
 
-        <div class="step-item" id="step-devices" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
-            <div class="step-icon" style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</div>
+        <div class="step-item" id="step-devices"
+            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+            <div class="step-icon"
+                style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                3</div>
             <div style="flex: 1;">
                 <h3 style="margin: 0; font-size: 1.1rem;">Environment Check</h3>
-                <p style="margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem;">Verifying Camera & Mic are available and not in use.</p>
+                <p style="margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem;">Verifying Camera & Mic are available
+                    and not in use.</p>
             </div>
             <button onclick="checkDevices()" class="btn btn-sm" id="btn-devices">Verify</button>
             <span class="check-mark" style="display: none; color: #10b981; font-size: 1.5rem;">✓</span>
         </div>
-        
-        <div id="error-msg" style="color: #ef4444; font-size: 0.9rem; margin-top: 1rem; text-align: center; display: none;"></div>
+
+        <div id="error-msg"
+            style="color: #ef4444; font-size: 0.9rem; margin-top: 1rem; text-align: center; display: none;"></div>
     </div>
 </div>
 
@@ -202,20 +274,20 @@
         // We wait for user interaction via overlay
         checkSteps();
     }
-    
+
     function checkSteps() {
         // Check Fullscreen
         const isFS = !!document.fullscreenElement;
         updateStepUI('fullscreen', isFS);
-        
+
         // Chain Enable Logic
         // 1. Fullscreen -> 2. Proctoring -> 3. Devices
-        
+
         const proctorStep = document.getElementById('step-proctor');
         const deviceStep = document.getElementById('step-devices');
         const isProctorDone = !!screenStream;
         const isDeviceDone = !!cameraStream;
-        
+
         if (isFS) {
             proctorStep.style.opacity = '1';
             proctorStep.style.pointerEvents = 'all';
@@ -223,7 +295,7 @@
             proctorStep.style.opacity = '0.5';
             proctorStep.style.pointerEvents = 'none';
         }
-        
+
         if (isFS && isProctorDone) {
             deviceStep.style.opacity = '1';
             deviceStep.style.pointerEvents = 'all';
@@ -231,59 +303,59 @@
             deviceStep.style.opacity = '0.5';
             deviceStep.style.pointerEvents = 'none';
         }
-        
+
         updateStepUI('proctor', isProctorDone);
         updateStepUI('devices', isDeviceDone);
-        
+
         // If ALL done, start test
         if (isFS && isProctorDone && isDeviceDone) {
             document.getElementById('fullscreen-overlay').style.display = 'none';
             const container = document.getElementById('test-container');
-             if(container) {
-                 container.style.visibility = 'visible';
-                 container.style.opacity = '1';
-             }
-             if (!isTestActive) {
-                 isTestActive = true;
-                 showQuestion(currentQuestion);
-                 startTimer();
-             }
+            if (container) {
+                container.style.visibility = 'visible';
+                container.style.opacity = '1';
+            }
+            if (!isTestActive) {
+                isTestActive = true;
+                showQuestion(currentQuestion);
+                startTimer();
+            }
         } else {
             document.getElementById('fullscreen-overlay').style.display = 'flex';
-             const container = document.getElementById('test-container');
-             if(container) {
-                 container.style.visibility = 'hidden';
-                 container.style.opacity = '0';
-             }
-             isTestActive = false;
+            const container = document.getElementById('test-container');
+            if (container) {
+                container.style.visibility = 'hidden';
+                container.style.opacity = '0';
+            }
+            isTestActive = false;
         }
     }
-    
+
     // ... enableFullScreen ... enableProctoring ...
-    
+
     // 3. Device Check (Camera Exclusivity & Audio Guard)
     async function checkDevices() {
         try {
             // Request Video & Audio
             cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            
+
             // Initialize Audio Analysis
             initAudioGuard(cameraStream);
-            
+
             checkSteps();
-            
+
         } catch (err) {
             console.error(err);
             if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-                 showError("⚠️ Camera/Mic is in use by another application! Please close Google Meet, Zoom, or other tools to proceed.");
+                showError("⚠️ Camera/Mic is in use by another application! Please close Google Meet, Zoom, or other tools to proceed.");
             } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                 showError("🚫 Permission Denied. You must allow Camera & Mic access.");
+                showError("🚫 Permission Denied. You must allow Camera & Mic access.");
             } else {
-                 showError(`Device Error: ${err.message}`);
+                showError(`Device Error: ${err.message}`);
             }
         }
     }
-    
+
     // Audio & Face Logic
     let audioContext, analyser, microphone, javascriptNode;
     let faceModel = null;
@@ -291,22 +363,22 @@
 
     async function initAudioGuard(stream) {
         // Audio Part
-        if(!audioContext) {
+        if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
             microphone = audioContext.createMediaStreamSource(stream);
             javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
-    
+
             analyser.smoothingTimeConstant = 0.8;
             analyser.fftSize = 1024;
-    
+
             microphone.connect(analyser);
             analyser.connect(javascriptNode);
             javascriptNode.connect(audioContext.destination);
-            
+
             setupMeterUI(microphone);
         }
-        
+
         // Face Detection Part
         if (!faceModel) {
             try {
@@ -319,12 +391,12 @@
             }
         }
     }
-    
+
     function setupMeterUI(microphone) {
-         // Add UI ... (re-using existing UI logic but ensuring it's robust)
-         // Check if meter exists
-         if(document.getElementById('audio-meter')) return;
-         
+        // Add UI ... (re-using existing UI logic but ensuring it's robust)
+        // Check if meter exists
+        if (document.getElementById('audio-meter')) return;
+
         const meter = document.createElement('div');
         meter.id = 'audio-meter';
         meter.style.cssText = `
@@ -334,21 +406,21 @@
             flex-direction: column; gap: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
             border: 1px solid #333; width: 220px;
         `;
-        
+
         // Video Container
         const vidContainer = document.createElement('div');
         vidContainer.style.cssText = `
             position: relative; width: 100%; height: 120px; background: #000;
             border-radius: 8px; overflow: hidden; margin-bottom: 4px;
         `;
-        
+
         const video = document.createElement('video');
         video.id = 'proctor-video';
         video.autoplay = true;
         video.muted = true;
         video.style.cssText = 'width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);'; // Mirror
-        if(microphone.mediaStream) video.srcObject = microphone.mediaStream; 
-        
+        if (microphone.mediaStream) video.srcObject = microphone.mediaStream;
+
         const recBadge = document.createElement('div');
         recBadge.innerHTML = '🔴 REC';
         recBadge.style.cssText = `
@@ -357,10 +429,10 @@
             background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px;
             animation: blink 1s infinite;
         `;
-        
+
         vidContainer.appendChild(video);
         vidContainer.appendChild(recBadge);
-        
+
         meter.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span style="font-weight: bold; color: #9ca3af;">AUDIO & ENV MONITOR</span>
@@ -370,8 +442,8 @@
                 Calculating allowed. Eye tracking disabled.
             </div>
         `;
-        meter.insertBefore(vidContainer, meter.firstChild.nextSibling); 
-        
+        meter.insertBefore(vidContainer, meter.firstChild.nextSibling);
+
         const audioRow = document.createElement('div');
         audioRow.style.cssText = 'display: flex; align-items: center; gap: 8px; width: 100%;';
         audioRow.innerHTML = `
@@ -382,27 +454,27 @@
         `;
         meter.appendChild(audioRow);
         document.body.appendChild(meter);
-        
+
         // Blink style
         const style = document.createElement('style');
         style.innerHTML = `@keyframes blink { 50% { opacity: 0.5; } }`;
         document.head.appendChild(style);
 
-        javascriptNode.onaudioprocess = function() {
+        javascriptNode.onaudioprocess = function () {
             var array = new Uint8Array(analyser.frequencyBinCount);
             analyser.getByteFrequencyData(array);
             var values = 0;
             var length = array.length;
             for (var i = 0; i < length; i++) values += array[i];
             var average = values / length;
-            
+
             const meterEl = document.getElementById('audio-meter');
             const bar = document.getElementById('noise-bar');
-            
+
             if (isTestActive && meterEl) {
                 meterEl.style.display = 'flex';
                 bar.style.width = Math.min(100, average * 4) + '%';
-                if (average > 12) { 
+                if (average > 12) {
                     bar.style.background = '#ef4444';
                     triggerNoiseWarning();
                 } else {
@@ -413,18 +485,18 @@
             }
         }
     }
-    
+
     function startFaceDetection() {
-        if(faceCheckInterval) clearInterval(faceCheckInterval);
-        
+        if (faceCheckInterval) clearInterval(faceCheckInterval);
+
         const video = document.getElementById('proctor-video');
-        
+
         faceCheckInterval = setInterval(async () => {
             if (!isTestActive || !faceModel || !video || video.paused || video.ended) return;
-            
+
             try {
                 const predictions = await faceModel.estimateFaces(video, false);
-                
+
                 if (predictions.length === 0) {
                     handleFaceViolation("No Face Detected", true);
                 } else if (predictions.length > 1) {
@@ -438,11 +510,11 @@
             }
         }, 3000); // Check every 3s
     }
-    
+
     let violationOverlay = null;
     function handleFaceViolation(msg, shouldBlur) {
         logIncident(msg, 10);
-        
+
         if (shouldBlur) {
             // Check if overlay already exists
             if (!violationOverlay) {
@@ -462,29 +534,29 @@
                     </p>
                 `;
                 document.body.appendChild(violationOverlay);
-                
+
                 // Hide content
                 const container = document.getElementById('test-container');
-                if(container) container.style.visibility = 'hidden';
+                if (container) container.style.visibility = 'hidden';
             }
         }
     }
-    
+
     function clearFaceViolation() {
         if (violationOverlay) {
             violationOverlay.remove();
             violationOverlay = null;
-            
+
             // Show content
             const container = document.getElementById('test-container');
-            if(container) container.style.visibility = 'visible';
+            if (container) container.style.visibility = 'visible';
         }
     }
-    
+
     let lastWarning = 0;
     let malpracticeScore = 0;
     const MAX_MALPRACTICE_SCORE = 100;
-    
+
     function triggerNoiseWarning() {
         const now = Date.now();
         if (now - lastWarning > 5000) { // Debounce 5s
@@ -492,10 +564,10 @@
             logIncident('High Audio Level Detected', 15);
         }
     }
-    
+
     function logIncident(reason, severity) {
         malpracticeScore += severity;
-        
+
         // Visual Alert
         const alert = document.createElement('div');
         alert.style.cssText = `
@@ -513,22 +585,22 @@
             </div>
         `;
         document.body.appendChild(alert);
-        
+
         setTimeout(() => alert.remove(), 4000);
-        
+
         // Update Title
         document.title = `⚠️ Suspicious Activity (${malpracticeScore})`;
-        
+
         // Check Termination
         if (malpracticeScore >= MAX_MALPRACTICE_SCORE) {
             terminateTest(reason); // Pass reason
         }
     }
-    
+
     function terminateTest(reason) {
         isTestActive = false;
         clearInterval(timerInterval);
-        
+
         // Create Termination Overlay
         const overlay = document.createElement('div');
         overlay.style.cssText = `
@@ -545,27 +617,27 @@
             <p style="margin-top: 1rem;">Submitting your results automatically...</p>
         `;
         document.body.appendChild(overlay);
-        
+
         // Force Submit after 3s
         setTimeout(() => {
             document.getElementById('testForm').submit();
         }, 3000);
     }
-    
+
     // Add listeners for scoring
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement && isTestActive) {
             logIncident('Exited Full Screen Mode', 30);
         }
     });
-    
+
     window.addEventListener('blur', () => {
         if (isTestActive) {
-             logIncident('Window Focus Lost', 20);
+            logIncident('Window Focus Lost', 20);
         }
     });
 
-    
+
     // 1. Full Screen
     function enableFullScreen() {
         const elem = document.documentElement;
@@ -574,7 +646,7 @@
             method.call(elem).catch(err => showError(`Full Screen Error: ${err.message}`));
         }
     }
-    
+
     // 2. Proctoring (Screen Share)
     async function enableProctoring() {
         try {
@@ -583,32 +655,32 @@
                 video: { cursor: "always" },
                 audio: false
             });
-            
+
             // STRICT VALIDATION: Ensure "Entire Screen" (monitor) was shared
             const videoTrack = screenStream.getVideoTracks()[0];
             const settings = videoTrack.getSettings();
-            
+
             // Note: displaySurface support varies, but usually 'monitor' for full screen
             if (settings.displaySurface && settings.displaySurface !== 'monitor') {
-                 // Reject
-                 videoTrack.stop();
-                 screenStream = null;
-                 showError("❌ Invalid Share: You select 'Entire Screen' tab (not Window/Chrome Tab).");
-                 updateStepUI('proctor', false);
-                 return;
+                // Reject
+                videoTrack.stop();
+                screenStream = null;
+                showError("❌ Invalid Share: You select 'Entire Screen' tab (not Window/Chrome Tab).");
+                updateStepUI('proctor', false);
+                return;
             }
-            
+
             // Validate: Must be active
             if (screenStream.active) {
                 updateStepUI('proctor', true);
-                
-                videoTrack.onended = function() {
+
+                videoTrack.onended = function () {
                     screenStream = null;
                     updateStepUI('proctor', false);
                     showError("Screen Monitoring Stopped! Test Paused.");
                     checkSteps();
                 };
-                
+
                 checkSteps();
             }
         } catch (err) {
@@ -617,12 +689,12 @@
             updateStepUI('proctor', false);
         }
     }
-    
+
     function updateStepUI(step, isDone) {
         const row = document.getElementById(`step-${step}`);
         const btn = document.getElementById(`btn-${step}`);
         const check = row.querySelector('.check-mark');
-        
+
         if (isDone) {
             btn.style.display = 'none';
             check.style.display = 'block';
@@ -633,14 +705,14 @@
             row.style.background = 'transparent';
         }
     }
-    
+
     function showError(msg) {
         const el = document.getElementById('error-msg');
         el.innerText = msg;
         el.style.display = 'block';
         setTimeout(() => el.style.display = 'none', 5000);
     }
-    
+
     // Listen for Full Screen changes
     function onFullScreenChange() {
         // If we exit full screen, we invalidate step 1
@@ -648,7 +720,7 @@
         updateStepUI('fullscreen', isFS);
         checkSteps();
     }
-    
+
     document.addEventListener('fullscreenchange', onFullScreenChange);
     document.addEventListener('webkitfullscreenchange', onFullScreenChange);
     document.addEventListener('mozfullscreenchange', onFullScreenChange);
@@ -656,7 +728,7 @@
 
     function showQuestion(n) {
         if (!isTestActive) return;
-        
+
         // Hide all slides
         document.querySelectorAll('.question-slide').forEach(el => el.style.display = 'none');
 
@@ -664,6 +736,11 @@
         const slide = document.getElementById(`slide-${n}`);
         if (slide) {
             slide.style.display = 'block';
+
+            // Dynamic Timer: 60s for MCQ, 300s (5 mins) for Coding
+            const isCoding = slide.getAttribute('data-is-coding') === 'true';
+            timeLeft = isCoding ? 300 : 60;
+            updateTimerDisplay();
 
             // Update UI
             document.getElementById('current-q-num').innerText = n;
@@ -674,10 +751,10 @@
 
     function startTimer() {
         if (timerInterval) clearInterval(timerInterval);
-        
+
         timerInterval = setInterval(() => {
-            if (!isTestActive) return; 
-            
+            if (!isTestActive) return;
+
             timeLeft--;
             updateTimerDisplay();
 
@@ -696,7 +773,7 @@
 
     function updateTimerDisplay() {
         const el = document.getElementById('timer');
-        if(el) {
+        if (el) {
             el.innerText = timeLeft;
             if (timeLeft <= 10) el.style.color = '#dc2626';
             else el.style.color = '#ef4444';
@@ -706,7 +783,7 @@
     function nextQuestion(autoArgs = false) {
         if (currentQuestion < totalQuestions) {
             currentQuestion++;
-             timeLeft = timeLimit; // Reset time for NEXT question specifically here
+            // Note: timeLeft is now reset in showQuestion() based on question type
             showQuestion(currentQuestion);
             startTimer(); // Reset timer for new question
         } else {
@@ -734,7 +811,7 @@
     });
 
     // Start on load
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         init();
         setupSecurity();
     });
@@ -746,75 +823,75 @@
 
         // 2. Preemptive Blur on Keys
         // We trigger blur KEYDOWN for Meta (Windows), Shift (for Snip), Ctrl, PrintScreen
-        document.addEventListener('keydown', function(e) {
-            
+        document.addEventListener('keydown', function (e) {
+
             // Checking for specific keys that might precede a screenshot
             const sensitiveKeys = ['PrintScreen', 'Meta', 'Control', 'Alt'];
             if (sensitiveKeys.includes(e.key) || e.key === 'Shift') {
-                 // FAST BLUR
-                 const container = document.getElementById('test-container');
-                 if(container) container.style.filter = 'blur(20px)';
-                 
-                 if (e.key === 'PrintScreen') {
-                     e.preventDefault();
-                     triggerBlackout('Screenshot Attempt Detected');
-                 }
+                // FAST BLUR
+                const container = document.getElementById('test-container');
+                if (container) container.style.filter = 'blur(20px)';
+
+                if (e.key === 'PrintScreen') {
+                    e.preventDefault();
+                    triggerBlackout('Screenshot Attempt Detected');
+                }
             }
-            
+
             // Combinations
             if ((e.ctrlKey || e.metaKey) && ['c', 'p', 's'].includes(e.key.toLowerCase())) {
                 e.preventDefault();
                 triggerBlackout('Copy/Save Attempt Detected');
             }
         });
-        
-        document.addEventListener('keyup', function(e) {
+
+        document.addEventListener('keyup', function (e) {
             // Restore blur only if NO sensitive keys are held? 
             // We'll restore after a short delay if no blackout is active
             const sensitiveKeys = ['PrintScreen', 'Meta', 'Control', 'Alt', 'Shift'];
             if (sensitiveKeys.includes(e.key)) {
                 // If we are not in full blackout mode, remove the blur
-                 if (!document.getElementById('security-blackout') || document.getElementById('security-blackout').style.display === 'none') {
-                     setTimeout(() => {
-                         const container = document.getElementById('test-container');
-                         if(container) container.style.filter = 'none';
-                     }, 500); 
-                 }
+                if (!document.getElementById('security-blackout') || document.getElementById('security-blackout').style.display === 'none') {
+                    setTimeout(() => {
+                        const container = document.getElementById('test-container');
+                        if (container) container.style.filter = 'none';
+                    }, 500);
+                }
             }
         });
 
         // 3. Blur on Focus Loss (Tab switch or clicking snipping tool)
-        window.addEventListener('blur', function() {
+        window.addEventListener('blur', function () {
             const container = document.getElementById('test-container');
-            if(container) container.style.filter = 'blur(20px)';
-            
+            if (container) container.style.filter = 'blur(20px)';
+
             document.title = "⚠️ RESTRICTED";
-            
+
             // Show persistent lock screen
             showLockScreen('Focus Lost! Click to Resume.');
         });
 
-        window.addEventListener('focus', function() {
+        window.addEventListener('focus', function () {
             const container = document.getElementById('test-container');
-            if(container) container.style.filter = 'none';
+            if (container) container.style.filter = 'none';
             document.title = "Aptitude GO";
             hideLockScreen();
         });
-        
+
         // 4. Mouse Leave (Aggressive)
-        document.documentElement.addEventListener('mouseleave', function() {
-             const container = document.getElementById('test-container');
-             if(container) container.style.filter = 'blur(20px)';
+        document.documentElement.addEventListener('mouseleave', function () {
+            const container = document.getElementById('test-container');
+            if (container) container.style.filter = 'blur(20px)';
         });
-        
-        document.documentElement.addEventListener('mouseenter', function() {
-             // Only restore if we don't have a blackout active
-             if (!document.getElementById('security-blackout') || document.getElementById('security-blackout').style.display === 'none') {
+
+        document.documentElement.addEventListener('mouseenter', function () {
+            // Only restore if we don't have a blackout active
+            if (!document.getElementById('security-blackout') || document.getElementById('security-blackout').style.display === 'none') {
                 const container = document.getElementById('test-container');
-                if(container) container.style.filter = 'none';
-             }
+                if (container) container.style.filter = 'none';
+            }
         });
-        
+
         // 5. Disable Copy/Cut/Paste
         document.addEventListener('copy', e => e.preventDefault());
         document.addEventListener('cut', e => e.preventDefault());
@@ -824,8 +901,8 @@
     function showLockScreen(msg) {
         // Apply blur to container explicitly
         const container = document.getElementById('test-container');
-        if(container) container.style.filter = 'blur(20px)';
-        
+        if (container) container.style.filter = 'blur(20px)';
+
         let blackout = document.getElementById('security-blackout');
         if (!blackout) {
             createBlackout();
@@ -833,29 +910,29 @@
         }
         document.getElementById('blackout-msg').innerText = msg;
         blackout.style.display = 'flex';
-        
+
         // Removed hiding content logic, relying on Overlay + Blur
         document.body.classList.remove('hide-content');
     }
-    
+
     function hideLockScreen() {
         const blackout = document.getElementById('security-blackout');
         if (blackout) blackout.style.display = 'none';
-        
+
         const container = document.getElementById('test-container');
-        if(container) container.style.filter = 'none';
+        if (container) container.style.filter = 'none';
     }
 
     function triggerBlackout(reason) {
         showLockScreen(reason);
         if (window.blackoutTimeout) clearTimeout(window.blackoutTimeout);
         window.blackoutTimeout = setTimeout(() => {
-             if (document.hasFocus()) {
+            if (document.hasFocus()) {
                 hideLockScreen();
-             }
+            }
         }, 2000);
     }
-    
+
     function createBlackout() {
         const blackout = document.createElement('div');
         blackout.id = 'security-blackout';
@@ -869,19 +946,19 @@
         // Changed background to rgba to allow seeing the blurred content behind it if desired? 
         // User said "blurred image gets captured". 
         // If I make it semi-transparent black, they see blurred content + warning.
-        
+
         const icon = document.createElement('div');
         icon.style.fontSize = '4rem';
         icon.innerText = '⚠️';
-        
+
         const msg = document.createElement('div');
         msg.id = 'blackout-msg';
         msg.style.cssText = 'font-size: 2rem; font-weight: bold; margin-top: 1rem;';
-        
+
         const sub = document.createElement('div');
         sub.innerText = 'Action Prohibited during Test';
         sub.style.cssText = 'color: white; margin-top: 0.5rem;';
-        
+
         blackout.appendChild(icon);
         blackout.appendChild(msg);
         blackout.appendChild(sub);
@@ -892,17 +969,19 @@
 <style>
     /* Security Styles */
     @media print {
-        body { display: none !important; }
+        body {
+            display: none !important;
+        }
     }
-    
+
     /* When content is hidden, hide everything except the blackout overlay */
-    body.hide-content > *:not(#security-blackout) {
+    body.hide-content>*:not(#security-blackout) {
         visibility: hidden !important;
         opacity: 0 !important;
     }
-    
+
     /* Soft blur for mouse leave */
-    body.blur-active > *:not(#security-blackout) {
+    body.blur-active>*:not(#security-blackout) {
         filter: blur(20px);
     }
 </style>

@@ -9,8 +9,30 @@ def arena_home(request):
 
 @login_required
 def practice_dashboard(request):
-    categories = Category.objects.all()
-    return render(request, 'tests/dashboard.html', {'categories': categories})
+    import os
+    from django.utils.text import slugify
+    from django.conf import settings
+
+    # Dynamically find company slugs from the question_bank folder
+    company_base_path = os.path.join(settings.BASE_DIR, 'question_bank', 'company_level_question')
+    company_slugs = []
+    
+    if os.path.exists(company_base_path):
+        # Get all subdirectories as potential company slugs
+        company_slugs = [slugify(d) for d in os.listdir(company_base_path) 
+                        if os.path.isdir(os.path.join(company_base_path, d))]
+    
+    # Fallback to hardcoded list if folder is missing or empty (for safety)
+    if not company_slugs:
+        company_slugs = ['accenture', 'cognizant', 'tata-elxsi', 'tcs', 'tcs-ninja', 'wipro-elite-nlth']
+
+    company_categories = Category.objects.filter(slug__in=company_slugs)
+    general_categories = Category.objects.exclude(slug__in=company_slugs)
+    
+    return render(request, 'tests/dashboard.html', {
+        'categories': general_categories,
+        'company_categories': company_categories,
+    })
 
 @login_required
 def start_test(request, category_slug):
@@ -79,29 +101,46 @@ def submit_test(request):
                 question = Question.objects.get(id=q_id)
             except Question.DoesNotExist:
                 continue
+            
+            if question.is_coding_problem:
+                # Coding problem: get typed answer from textarea
+                user_code = request.POST.get(f'code_answer_{index}', '').strip()
                 
-            # Changed to look for unique key based on position (e.g. answer_1, answer_2)
-            # Template must update to use name="answer_{{ forloop.counter }}"
-            selected_option_id = request.POST.get(f'answer_{index}')
-            
-            selected_option = None
-            if selected_option_id:
-                selected_option = Option.objects.filter(id=selected_option_id).first()
-            
-            correct_option = question.options.filter(is_correct=True).first()
-            
-            is_correct = False
-            if selected_option and selected_option.is_correct:
-                score += 1
-                is_correct = True
-            
-            results_details.append({
-                'question': question,
-                'selected_option': selected_option,
-                'correct_option': correct_option,
-                'is_correct': is_correct,
-                'explanation': question.explanation
-            })
+                results_details.append({
+                    'question': question,
+                    'is_coding': True,
+                    'user_code': user_code,
+                    'selected_option': None,
+                    'correct_option': None,
+                    'is_correct': bool(user_code),  # Mark as "attempted" if they typed something
+                    'explanation': question.explanation,
+                })
+                if user_code:
+                    score += 1  # Give credit for attempting coding problems
+            else:
+                # MCQ: get selected radio option
+                selected_option_id = request.POST.get(f'answer_{index}')
+                
+                selected_option = None
+                if selected_option_id:
+                    selected_option = Option.objects.filter(id=selected_option_id).first()
+                
+                correct_option = question.options.filter(is_correct=True).first()
+                
+                is_correct = False
+                if selected_option and selected_option.is_correct:
+                    score += 1
+                    is_correct = True
+                
+                results_details.append({
+                    'question': question,
+                    'is_coding': False,
+                    'user_code': '',
+                    'selected_option': selected_option,
+                    'correct_option': correct_option,
+                    'is_correct': is_correct,
+                    'explanation': question.explanation,
+                })
         
         # Calculate Rewards
         coins = score * 10
