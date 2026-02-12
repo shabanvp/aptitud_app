@@ -319,9 +319,26 @@
             z-index: 200;
         }
 
-        .dropdown:hover .dropdown-content {
+        .dropdown-content.show {
             display: block;
+            animation: fadeIn 0.2s;
         }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* .dropdown:hover .dropdown-content {
+            display: block;
+        } Removed to use click handler */
 
         .dropdown-content a,
         .dropdown-content button {
@@ -410,7 +427,7 @@
 
                 <div style="margin-left: 1rem; position: relative;" class="dropdown">
                     {% has_unread_messages user as unread_company %}
-                    <button class="profile-btn">
+                    <button class="profile-btn" onclick="toggleDropdown(this)">
                         {{ user.username.0|upper }}
                     </button>
                     {% if unread_company %}
@@ -441,7 +458,7 @@
 
                 <div style="margin-left: 1rem; position: relative;" class="dropdown">
                     {% has_unread_messages user as unread_candidate %}
-                    <button class="profile-btn">
+                    <button class="profile-btn" onclick="toggleDropdown(this)">
                         {% if user.avatar %}
                         <img src="{{ user.avatar.url }}" style="width: 100%; height: 100%; object-fit: cover;">
                         {% else %}
@@ -496,6 +513,58 @@
             localStorage.setItem('theme', newTheme);
             updateIcon();
         });
+
+        // Dropdown Logic
+        let dropdownTimeout;
+
+        function toggleDropdown(btn) {
+            // Close other open dropdowns first (if any)
+            document.querySelectorAll('.dropdown-content.show').forEach(d => {
+                if (d !== btn.nextElementSibling && d !== btn.parentElement.querySelector('.dropdown-content')) {
+                    d.classList.remove('show');
+                }
+            });
+
+            // Find the dropdown content relative to the button
+            // The structure is button -> sibling .dropdown-content OR parent .dropdown -> .dropdown-content
+            // Based on HTML above, it is a sibling or next sibling depending on notification dot
+
+            const container = btn.closest('.dropdown');
+            const content = container.querySelector('.dropdown-content');
+
+            if (content) {
+                // Toggle visibility
+                const isShown = content.classList.contains('show');
+
+                if (isShown) {
+                    content.classList.remove('show');
+                    clearTimeout(dropdownTimeout);
+                } else {
+                    content.classList.add('show');
+
+                    // Clear existing timeout if we are re-opening
+                    clearTimeout(dropdownTimeout);
+
+                    // Auto-close after 3 seconds
+                    dropdownTimeout = setTimeout(() => {
+                        content.classList.remove('show');
+                    }, 3000);
+                }
+            }
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function (event) {
+            if (!event.target.matches('.profile-btn') && !event.target.closest('.profile-btn')) {
+                const dropdowns = document.getElementsByClassName("dropdown-content");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
     </script>
 </body>
 
