@@ -21,6 +21,19 @@
         </div>
     </a>
 
+    <!-- Events -->
+    <a href="{% url 'event_list' %}" class="card mode-card">
+        <div class="mode-visual events-visual">
+            <span style="font-size: 4rem;">📅</span>
+            <span class="badge-new" style="position: absolute; top: 1rem; right: 1rem; background: #ef4444; color: white; padding: 4px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 700;">NEW</span>
+        </div>
+        <div class="mode-content">
+            <h3>Special Events</h3>
+            <p>Join live aptitude challenges hosted by top recruiters. Prove your mettle.</p>
+            <span class="btn" style="margin-top: auto;">Explore Events</span>
+        </div>
+    </a>
+
     <!-- Room Match (Coming Soon) -->
     <div class="card mode-card disabled">
         <div class="mode-visual room-visual">
@@ -101,6 +114,10 @@
         background: linear-gradient(135deg, #e0e7ff 0%, #fae8ff 100%);
     }
 
+    .events-visual {
+        background: linear-gradient(135deg, #fecaca 0%, #bfdbfe 100%);
+    }
+
     .room-visual {
         background: linear-gradient(135deg, #fef3c7 0%, #ffedd5 100%);
         filter: grayscale(1) opacity(0.7);
@@ -113,6 +130,10 @@
 
     [data-theme="dark"] .solo-visual {
         background: linear-gradient(135deg, rgba(79, 70, 229, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%);
+    }
+
+    [data-theme="dark"] .events-visual {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
     }
 
     [data-theme="dark"] .room-visual {

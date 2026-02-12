@@ -8,6 +8,7 @@ urlpatterns = [
     path('', include('users.urls')),
     path('tests/', include('tests.urls')),
     path('game/', include('gamification.urls')),
+    path('events/', include('events.urls')),
 ]
 
 if settings.DEBUG:
