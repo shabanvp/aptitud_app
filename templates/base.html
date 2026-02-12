@@ -320,9 +320,6 @@
             z-index: 200;
         }
 
-<<<<<<< HEAD
-        .dropdown-content.show {
-=======
         /* Bridge the gap using parent pseudo-element */
         .dropdown::after {
             content: "";
@@ -330,14 +327,11 @@
             top: 100%;
             right: 0;
             width: 160px;
-            /* Match min-width of content */
             height: 1.5rem;
-            /* Covers the margin + play area */
             background: transparent;
         }
 
-        .dropdown:hover .dropdown-content {
->>>>>>> f75bdb5f52d035a5b87ed6fa8f4251e0a54345b1
+        .dropdown-content.show {
             display: block;
             animation: fadeIn 0.2s;
         }
@@ -353,10 +347,6 @@
                 transform: translateY(0);
             }
         }
-
-        /* .dropdown:hover .dropdown-content {
-            display: block;
-        } Removed to use click handler */
 
         .dropdown-content a,
         .dropdown-content button {
@@ -475,9 +465,9 @@
                     <span style="color: #f59e0b;">💰 {{ user.coins }}</span>
                 </div>
                 {% endif %}
-                
+
                 {% if user.is_superuser %}
-                 <a href="{% url 'custom_admin_dashboard' %}" class="nav-link">Admin Dashboard</a>
+                <a href="{% url 'custom_admin_dashboard' %}" class="nav-link">Admin Dashboard</a>
                 {% endif %}
 
                 <div style="margin-left: 1rem; position: relative;" class="dropdown">
