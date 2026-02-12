@@ -441,6 +441,7 @@
                 </div>
                 {% else %}
                 <!-- Candidate Navbar -->
+                {% if not user.is_superuser %}
                 <a href="{% url 'arena_home' %}"
                     class="nav-link {% if request.resolver_match.url_name == 'arena_home' %}active{% endif %}">Arena</a>
                 <a href="{% url 'store' %}"
@@ -452,6 +453,11 @@
                     <span style="width: 1px; height: 16px; background: rgba(0,0,0,0.1);"></span>
                     <span style="color: #f59e0b;">💰 {{ user.coins }}</span>
                 </div>
+                {% endif %}
+                
+                {% if user.is_superuser %}
+                 <a href="{% url 'custom_admin_dashboard' %}" class="nav-link">Admin Dashboard</a>
+                {% endif %}
 
                 <div style="margin-left: 1rem; position: relative;" class="dropdown">
                     {% has_unread_messages user as unread_candidate %}

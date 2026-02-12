@@ -38,17 +38,17 @@
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon rooms-icon">🎮</div>
+                <div class="stat-icon rooms-icon">📝</div>
                 <div class="stat-info">
-                    <h4>Active Rooms</h4>
-                    <p>{{ multiplayer_stats.active_rooms }}</p>
+                    <h4>Tests Taken</h4>
+                    <p>{{ total_tests_taken }}</p>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon reports-icon">⚠️</div>
+                <div class="stat-icon reports-icon">🛍️</div>
                 <div class="stat-info">
-                    <h4>Pending Reports</h4>
-                    <p>{{ user_reports|length }}</p>
+                    <h4>Items Sold</h4>
+                    <p>{{ total_items_sold }}</p>
                 </div>
             </div>
         </div>
@@ -87,63 +87,76 @@
                 </table>
             </div>
 
-            <!-- Multiplayer Stats -->
+            <!-- Store Stats -->
             <div class="dashboard-section half-width">
-                <h3>Multiplayer Arena Status</h3>
-                <div class="mp-stats-list">
-                    <div class="mp-stat-item">
-                        <span>Avg Queue Time</span>
-                        <strong>{{ multiplayer_stats.queue_time_ms }} ms</strong>
-                    </div>
-                    <div class="mp-stat-item">
-                        <span>Network Latency</span>
-                        <strong>{{ multiplayer_stats.latency_ms }} ms</strong>
-                    </div>
-                    <div class="mp-stat-item">
-                        <span>Matches Today</span>
-                        <strong>{{ multiplayer_stats.total_matches_today }}</strong>
-                    </div>
-                    <div class="mp-stat-item">
-                        <span>Server Status</span>
-                        <span class="badge success">Online</span>
-                    </div>
-                </div>
+                <h3>Popular Store Items</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Type</th>
+                            <th>Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in popular_items %}
+                        <tr>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.get_item_type_display }}</td>
+                            <td><strong>{{ item.sold_count }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" style="text-align: center;">No sales yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- User Reports -->
+        <!-- Recent Users -->
         <div class="dashboard-section">
-            <h3>User Reports & Flags</h3>
+            <h3>Recent User Registrations</h3>
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>User</th>
-                        <th>Reason</th>
-                        <th>Date</th>
-                        <th>Status</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Joined Date</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for report in user_reports %}
+                    {% for user in recent_users %}
                     <tr>
-                        <td>#{{ report.id }}</td>
-                        <td>{{ report.username }}</td>
-                        <td>{{ report.reason }}</td>
-                        <td>{{ report.date }}</td>
                         <td>
-                            <span class="badge {% if report.status == 'Pending' %}warning{% else %}info{% endif %}">
-                                {{ report.status }}
-                            </span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="width: 32px; height: 32px; background: #e0e7ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary-color);">
+                                    {{ user.username.0|upper }}
+                                </div>
+                                {{ user.username }}
+                            </div>
                         </td>
+                        <td>{{ user.email }}</td>
                         <td>
-                            <button class="btn-small">Review</button>
+                            {% if user.is_superuser %}
+                                <span class="badge info">Admin</span>
+                            {% elif user.is_company %}
+                                <span class="badge warning">Recruiter</span>
+                            {% else %}
+                                <span class="badge success">Student</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'user_profile' user.username %}" class="btn-small" style="text-decoration: none; display: inline-block;">View</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" style="text-align: center;">No pending reports.</td>
+                        <td colspan="5" style="text-align: center;">No users found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
