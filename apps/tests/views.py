@@ -1,9 +1,42 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
+from django.http import HttpResponseForbidden
+from django.conf import settings
 from .models import Category, Question, TestAttempt, Option
 from gamification.models import MonthlySpin
 import random
+import os
+
+@login_required
+def practice_arena(request):
+    # ACCESS CONTROL: Only allow users (role == "user")
+    # In this system, role "user" is a candidate (not company, not superuser)
+    if request.user.is_company or request.user.is_superuser:
+        return HttpResponseForbidden("Access Denied: Practice Arena is for Candidates only.")
+
+    pdf_list = []
+    pdf_dir = os.path.join(settings.MEDIA_ROOT, 'practice_questions')
+    
+    if os.path.exists(pdf_dir):
+        for filename in os.listdir(pdf_dir):
+            if filename.lower().endswith('.pdf'):
+                file_path = os.path.join(pdf_dir, filename)
+                file_size = os.path.getsize(file_path)
+                
+                # Convert size to readable format
+                if file_size < 1024 * 1024:
+                    size_str = f"{round(file_size / 1024, 1)} KB"
+                else:
+                    size_str = f"{round(file_size / (1024 * 1024), 1)} MB"
+                
+                pdf_list.append({
+                    'name': filename,
+                    'url': f"{settings.MEDIA_URL}practice_questions/{filename}",
+                    'size': size_str,
+                })
+    
+    return render(request, 'tests/practice_arena.html', {'pdf_list': pdf_list})
 
 @login_required
 def arena_home(request):
@@ -11,9 +44,7 @@ def arena_home(request):
 
 @login_required
 def practice_dashboard(request):
-    import os
     from django.utils.text import slugify
-    from django.conf import settings
 
     # Dynamically find company slugs from the question_bank folder
     company_base_path = os.path.join(settings.BASE_DIR, 'question_bank', 'company_level_question')

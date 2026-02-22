@@ -624,7 +624,8 @@
                     class="nav-link {% if request.resolver_match.url_name == 'arena_home' %}active{% endif %}">Arena</a>
                 <a href="{% url 'store' %}"
                     class="nav-link {% if request.resolver_match.url_name == 'store' %}active{% endif %}">Store</a>
-                <a href="{% url 'practice_dashboard' %}" class="nav-link">Practice</a>
+                <a href="{% url 'practice_arena' %}"
+                    class="nav-link {% if request.resolver_match.url_name == 'practice_arena' %}active{% endif %}">Practice</a>
 
                 <div class="stats-pill">
                     <span style="color: #ef4444;">❤️ {{ user.lives }}</span>
