@@ -34,9 +34,9 @@
             {% for item in results_details %}
             <div
                 style="background: var(--bg-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; border-left: 4px solid {% if item.is_correct %}#10b981{% else %}#ef4444{% endif %}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <p style="font-weight: 600; margin-bottom: 0.75rem; color: var(--text-color); white-space: pre-wrap;">
+                <p style="font-weight: 600; margin-bottom: 1rem; color: var(--text-color); white-space: pre-wrap;">
                     <span>{{ forloop.counter }}.</span>
-                    <span>{{ item.question.text }}</span>
+                    <span>{{ item.question.text|safe }}</span>
                 </p>
 
                 {% if item.is_coding %}
@@ -52,10 +52,10 @@
                 </div>
 
                 {% if item.explanation %}
-                <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.05);">
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1);">
                     <strong style="color: #10b981;">✅ Reference Solution:</strong>
                     <pre
-                        style="background: #0f172a; color: #86efac; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-family: 'Courier New', Consolas, monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap;">{{ item.explanation }}</pre>
+                        style="background: #0f172a; color: #86efac; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-family: 'Courier New', Consolas, monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap;">{{ item.explanation|safe }}</pre>
                 </div>
                 {% endif %}
 
@@ -77,10 +77,10 @@
                 </div>
                 {% endif %}
 
-                {% if item.question.explanation %}
+                {% if item.explanation %}
                 <div
-                    style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.05); font-size: 0.9rem; color: #64748b;">
-                    <strong>💡 Explanation:</strong> {{ item.question.explanation }}
+                    style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1); font-size: 0.9rem; color: #64748b;">
+                    <strong>💡 Explanation:</strong> {{ item.explanation|safe }}
                 </div>
                 {% endif %}
                 {% endif %}

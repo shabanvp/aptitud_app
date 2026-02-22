@@ -30,3 +30,20 @@ class UserItem(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.item.name}"
+
+class MonthlySpin(models.Model):
+    REWARD_TYPES = [
+        ('COINS', 'Coins'),
+        ('LIVES', 'Lives'),
+        ('FRAME', 'Golden Frame'),
+    ]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='monthly_spins')
+    spin_date = models.DateTimeField(auto_now_add=True)
+    reward_type = models.CharField(max_length=10, choices=REWARD_TYPES)
+    reward_value = models.IntegerField()  # Number of coins/lives or StoreItem ID
+
+    class Meta:
+        ordering = ['-spin_date']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.reward_type} ({self.reward_value}) on {self.spin_date.strftime('%Y-%m')}"

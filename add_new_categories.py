@@ -4,7 +4,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aptitude_platform.settings')
 django.setup()
 
-from apps.tests.models import Category
+from tests.models import Category
 
 def add_new_categories():
     """Add new aptitude categories to the database"""

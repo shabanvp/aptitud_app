@@ -1,6 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 from .models import Category, Question, TestAttempt, Option
+from gamification.models import MonthlySpin
 import random
 
 @login_required
@@ -63,9 +65,24 @@ def practice_dashboard(request):
             
     sorted_general.sort(key=sort_key)
     
+    # Check reward wheel eligibility
+    user = request.user
+    is_eligible_for_spin = user.is_authenticated and not user.is_company and not user.is_superuser
+    show_wheel_modal = False
+    
+    if is_eligible_for_spin:
+        now = timezone.now()
+        has_spun_this_month = MonthlySpin.objects.filter(
+            user=user,
+            spin_date__year=now.year,
+            spin_date__month=now.month
+        ).exists()
+        show_wheel_modal = not has_spun_this_month
+
     return render(request, 'tests/dashboard.html', {
         'categories': sorted_general,
         'company_categories': company_categories,
+        'show_wheel_modal': show_wheel_modal,
     })
 
 @login_required
@@ -211,9 +228,12 @@ def submit_test(request):
         
         del request.session['test_questions']
         
+        # Use actual results length for total
+        actual_total = len(results_details)
+        
         context = {
             'score': score,
-            'total': total,
+            'total': actual_total,
             'coins': coins,
             'exp': exp,
             'leveled_up': leveled_up,

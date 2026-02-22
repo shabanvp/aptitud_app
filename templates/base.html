@@ -118,6 +118,7 @@
             font-weight: 800;
             background: var(--primary-gradient);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             text-decoration: none;
             display: flex;
@@ -144,6 +145,35 @@
 
         nav a:hover {
             color: var(--primary-color);
+        }
+
+        .profile-container {
+            position: relative;
+            display: inline-block;
+            border-radius: 50%;
+            padding: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .golden-frame-active {
+            background: linear-gradient(45deg, #fbbf24, #f59e0b, #fbbf24);
+            background-size: 200% 200%;
+            animation: golden-glow 3s linear infinite;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+
+        @keyframes golden-glow {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
         }
 
         .container {
@@ -207,7 +237,8 @@
             background-position: right 1rem center;
             background-size: 1.25em;
             cursor: pointer;
-            padding-right: 2.5rem; /* Space for the arrow */
+            padding-right: 2.5rem;
+            /* Space for the arrow */
         }
 
         [data-theme="dark"] select {
@@ -221,7 +252,7 @@
             opacity: 0.6;
             transition: opacity 0.2s;
         }
-        
+
         ::-webkit-calendar-picker-indicator:hover {
             opacity: 1;
         }
@@ -298,9 +329,9 @@
         }
 
         .btn-danger:hover {
-             background: #fecaca;
-             color: #b91c1c;
-             filter: brightness(1);
+            background: #fecaca;
+            color: #b91c1c;
+            filter: brightness(1);
         }
 
         [data-theme="dark"] .btn-danger {
@@ -502,6 +533,44 @@
             border: 2px solid var(--bg-color);
             z-index: 10;
         }
+
+        /* Profile Frame Styles */
+        .profile-container {
+            position: relative;
+            padding: 4px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .golden-frame-active {
+            background: linear-gradient(45deg, #fbbf24, #fef3c7, #f59e0b, #fbbf24);
+            background-size: 400% 400%;
+            animation: goldenGlow 3s ease infinite;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+            padding: 5px;
+            /* Thicker frame */
+        }
+
+        @keyframes goldenGlow {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .golden-frame-active .profile-btn {
+            border: 2px solid #fff;
+        }
     </style>
     <script>
         // Check for saved theme preference or system preference
@@ -527,7 +596,8 @@
                 <!-- Company Navbar -->
                 <a href="{% url 'company_dashboard' %}"
                     class="nav-link {% if request.resolver_match.url_name == 'company_dashboard' %}active{% endif %}">Dashboard</a>
-                <a href="{% url 'recruiter_events' %}" class="nav-link {% if 'events' in request.path %}active{% endif %}">Events</a>
+                <a href="{% url 'recruiter_events' %}"
+                    class="nav-link {% if 'events' in request.path %}active{% endif %}">Events</a>
                 <a href="#" class="nav-link">Find Talent</a>
 
                 <div style="margin-left: 1rem; position: relative;" class="dropdown">
@@ -569,13 +639,19 @@
 
                 <div style="margin-left: 1rem; position: relative;" class="dropdown">
                     {% has_unread_messages user as unread_candidate %}
-                    <button class="profile-btn" onclick="toggleDropdown(this)">
-                        {% if user.avatar %}
-                        <img src="{{ user.avatar.url }}" style="width: 100%; height: 100%; object-fit: cover;">
-                        {% else %}
-                        {{ user.username.0|upper }}
-                        {% endif %}
-                    </button>
+                    {% load gamification_tags %}
+                    {% get_equipped_frame user as equipped_frame %}
+
+                    <div
+                        class="profile-container {% if equipped_frame and equipped_frame.name == 'Golden Frame' %}golden-frame-active{% endif %}">
+                        <button class="profile-btn" onclick="toggleDropdown(this)">
+                            {% if user.avatar %}
+                            <img src="{{ user.avatar.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                            {{ user.username.0|upper }}
+                            {% endif %}
+                        </button>
+                    </div>
                     {% if unread_candidate %}
                     <span class="notification-dot"></span>
                     {% endif %}
@@ -675,8 +751,8 @@
         }
 
         // Close dropdown when clicking outside
-        window.addEventListener('click', function(event) {
-             if (!event.target.matches('.profile-btn') && !event.target.closest('.profile-btn') && !event.target.closest('.dropdown-content')) {
+        window.addEventListener('click', function (event) {
+            if (!event.target.matches('.profile-btn') && !event.target.closest('.profile-btn') && !event.target.closest('.dropdown-content')) {
                 const dropdowns = document.getElementsByClassName("dropdown-content");
                 for (let i = 0; i < dropdowns.length; i++) {
                     const openDropdown = dropdowns[i];

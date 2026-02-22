@@ -11,6 +11,7 @@ from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
 from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
 from users.models import CustomUser, Conversation, Message, Certificate
 from tests.models import TestAttempt
+from gamification.models import MonthlySpin
 import django.contrib.auth
 
 def onboarding_status(request):
@@ -275,12 +276,24 @@ def send_message(request, conversation_id):
     return redirect('chat_detail', conversation_id=conversation_id)
 
 def home(request):
+    show_wheel_modal = False
     if request.user.is_authenticated:
         if request.user.is_superuser:
             return redirect('custom_admin_dashboard')
         if request.user.is_company:
             return redirect('company_dashboard')
-    return render(request, 'landing.html')
+            
+        # Check reward wheel eligibility for Candidates
+        user = request.user
+        now = timezone.now()
+        has_spun_this_month = MonthlySpin.objects.filter(
+            user=user,
+            spin_date__year=now.year,
+            spin_date__month=now.month
+        ).exists()
+        show_wheel_modal = not has_spun_this_month
+            
+    return render(request, 'landing.html', {'show_wheel_modal': show_wheel_modal})
 
 def admin_access(request):
     if request.method == 'POST':

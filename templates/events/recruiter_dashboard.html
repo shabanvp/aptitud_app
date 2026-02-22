@@ -1,9 +1,12 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+<div class="header-section"
+    style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
     <div>
-        <h1 style="margin-bottom: 0.5rem; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Event Management</h1>
+        <h1
+            style="margin-bottom: 0.5rem; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Event Management</h1>
         <p style="color: #64748b;">Manage your aptitude events and tournaments.</p>
     </div>
     <a href="{% url 'create_event' %}" class="btn">+ Create New Event</a>
@@ -12,7 +15,8 @@
 {% if messages %}
 <div style="margin-bottom: 2rem;">
     {% for message in messages %}
-    <div style="padding: 1rem; border-radius: 12px; margin-bottom: 1rem; {% if message.tags == 'error' %}background: #fee2e2; color: #991b1b;{% else %}background: #dcfce7; color: #166534;{% endif %}">
+    <div
+        style="padding: 1rem; border-radius: 12px; margin-bottom: 1rem; {% if message.tags == 'error' %}background: #fee2e2; color: #991b1b;{% else %}background: #dcfce7; color: #166534;{% endif %}">
         {{ message }}
     </div>
     {% endfor %}
@@ -27,7 +31,7 @@
             <h3 style="margin: 0 0 0.5rem 0; font-size: 1.25rem;">{{ event.title }}</h3>
             <div style="display: flex; gap: 1rem; color: #64748b; font-size: 0.9rem;">
                 <span>📅 {{ event.start_time|date:"M d, H:i" }}</span>
-                <span>⏱️ Total: {{ event.duration_minutes }} mins</span>
+                <span>⏱️ Window: {{ event.event_duration_minutes }}m | Test: {{ event.test_duration_minutes }}m</span>
                 <span>❓ {{ event.total_questions }} Qs</span>
                 <span>
                     {% if event.is_live %}
@@ -41,15 +45,18 @@
             </div>
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
-            <a href="{% url 'event_results' event.id %}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+            <a href="{% url 'event_results' event.id %}" class="btn btn-secondary"
+                style="padding: 0.5rem 1rem; font-size: 0.9rem;">
                 📊 Results
             </a>
-            <a href="{% url 'add_questions' event.id %}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+            <a href="{% url 'add_questions' event.id %}" class="btn btn-secondary"
+                style="padding: 0.5rem 1rem; font-size: 0.9rem;">
                 Questions ({{ event.questions.count }})
             </a>
-            
+
             {% if not event.is_live %}
-            <form action="{% url 'cancel_event' event.id %}" method="post" onsubmit="return confirm('Are you sure you want to cancel this event? This action cannot be undone.');">
+            <form action="{% url 'cancel_event' event.id %}" method="post"
+                onsubmit="return confirm('Are you sure you want to cancel this event? This action cannot be undone.');">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
                     Cancel

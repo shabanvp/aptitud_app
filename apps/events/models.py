@@ -39,10 +39,24 @@ class Event(models.Model):
         return timezone.now() < self.start_time
 
     @property
-    def duration_minutes(self):
+    def test_duration_minutes(self):
+        """Total time allowed for the test itself."""
         if self.time_limit_seconds <= 0:
             return 0
         return (self.time_limit_seconds + 59) // 60
+
+    @property
+    def event_duration_minutes(self):
+        """Total window of time the event is available (End - Start)."""
+        if not self.start_time or not self.end_time:
+            return 0
+        diff = self.end_time - self.start_time
+        return int(diff.total_seconds() // 60)
+
+    @property
+    def duration_minutes(self):
+        """Alias for backward compatibility with templates until updated."""
+        return self.test_duration_minutes
 
 class EventQuestion(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='questions')
