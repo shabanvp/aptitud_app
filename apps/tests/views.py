@@ -29,8 +29,42 @@ def practice_dashboard(request):
     company_categories = Category.objects.filter(slug__in=company_slugs)
     general_categories = Category.objects.exclude(slug__in=company_slugs)
     
+    # Priority sorting based on user's interests
+    user_interests = request.user.interested_field.lower() if request.user.is_authenticated and hasattr(request.user, 'interested_field') and request.user.interested_field else ""
+    
+    priority_slugs = []
+    
+    # Tech / IT / Software / Data / Engineering
+    if any(kw in user_interests for kw in ['software', 'it', 'tech', 'data', 'developer', 'computer', 'engineer']):
+        priority_slugs.extend(['computer-fundamentals', 'programming-aptitude', 'debugging-and-code-logic', 'cognitive-ability'])
+        
+    # Management / Banking / Study Abroad
+    if any(kw in user_interests for kw in ['management', 'mba', 'banking', 'business', 'finance', 'marketing', 'abroad']):
+        priority_slugs.extend(['quantitative-aptitude', 'logical-reasoning', 'verbal-ability', 'memory-and-attention', 'cognitive-ability'])
+        
+    # Civil Services / Defense / Railways / General
+    if any(kw in user_interests for kw in ['civil', 'defense', 'railway', 'general', 'government']):
+        priority_slugs.extend(['general-aptitude', 'logical-reasoning', 'quantitative-aptitude', 'verbal-ability', 'memory-and-attention'])
+
+    # Remove duplicates preserving order
+    unique_priority_slugs = []
+    for slug in priority_slugs:
+        if slug not in unique_priority_slugs:
+            unique_priority_slugs.append(slug)
+            
+    # List conversion for custom sorting
+    sorted_general = list(general_categories)
+    
+    def sort_key(category):
+        try:
+            return unique_priority_slugs.index(category.slug)
+        except ValueError:
+            return len(unique_priority_slugs) # Put it at the bottom if not prioritized
+            
+    sorted_general.sort(key=sort_key)
+    
     return render(request, 'tests/dashboard.html', {
-        'categories': general_categories,
+        'categories': sorted_general,
         'company_categories': company_categories,
     })
 

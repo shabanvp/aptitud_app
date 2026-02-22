@@ -38,7 +38,7 @@
                 <div class="card" style="margin-bottom: 2rem;">
                     <div
                         style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5; white-space: pre-wrap;">
-                        {{ question.text }}</div>
+                        {{ question.text|safe }}</div>
 
                     {% if question.is_coding_problem %}
                     <!-- Coding Problem: Text area for answer -->

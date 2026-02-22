@@ -4,7 +4,7 @@ import django
 from django.utils import timezone
 import pytz
 
-# Flush stdout to ensure we catch all output
+# Flush stdout to ensure we catch all outputmy
 sys.stdout.reconfigure(encoding='utf-8')
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aptitude_platform.settings')
