@@ -10,6 +10,8 @@ urlpatterns = [
     path('company-onboarding/', views.company_onboarding, name='company_onboarding'),
     path('company-dashboard/', views.company_dashboard, name='company_dashboard'),
     path('register/', views.register, name='register'),
+    path('email-sent/', views.email_sent, name='email_sent'),
+    path('verify-email/<uidb64>/<token>/', views.verify_email, name='verify_email'),
     path('login/', auth_views.LoginView.as_view(template_name='users/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('profile/', views.profile, name='profile'),
