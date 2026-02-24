@@ -9,8 +9,8 @@ import json
 
 from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
 from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
-from users.models import CustomUser, Conversation, Message, Certificate
-from tests.models import TestAttempt
+from apps.users.models import CustomUser, Conversation, Message, Certificate
+from apps.tests.models import TestAttempt
 from gamification.models import MonthlySpin
 import django.contrib.auth
 
@@ -318,9 +318,17 @@ def admin_access(request):
 def custom_admin_dashboard(request):
     if not request.user.is_superuser:
         return redirect('home')
+        
+    from apps.users.models import SiteSetting
+    settings = SiteSetting.get_settings()
+    
+    if request.method == 'POST' and 'toggle_malpractice' in request.POST:
+        settings.anti_malpractice_enabled = not settings.anti_malpractice_enabled
+        settings.save()
+        return redirect('custom_admin_dashboard')
 
     # 1. Overview Stats
-    from tests.models import Category, Question, TestAttempt
+    from apps.tests.models import Category, Question, TestAttempt
     from gamification.models import StoreItem, UserItem
     
     total_users = CustomUser.objects.count()
@@ -354,6 +362,7 @@ def custom_admin_dashboard(request):
         'recent_users': recent_users,
         'popular_items': popular_items,
         'categories': categories,
+        'anti_malpractice_enabled': settings.anti_malpractice_enabled,
     }
     
     return render(request, 'custom_admin/dashboard.html', context)

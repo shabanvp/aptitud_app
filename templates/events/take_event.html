@@ -219,10 +219,22 @@
     // --- Initialization ---
 
     document.addEventListener('DOMContentLoaded', function() {
+        {% if site_settings.anti_malpractice_enabled %}
         checkSteps();
         setupSecurity(); // Browser-level security
-        
-        // Option selection styling
+        {% else %}
+        document.getElementById('fullscreen-overlay').style.display = 'none';
+        const container = document.getElementById('test-container');
+        if(container) {
+            container.style.visibility = 'visible';
+            container.style.opacity = '1';
+        }
+        if (!isTestActive) {
+            isTestActive = true;
+            showQuestion(currentQuestion);
+            startTimer();
+        }
+        {% endif %}      // Option selection styling
         document.querySelectorAll('input[type="radio"]').forEach(radio => {
             radio.addEventListener('change', function () {
                 const name = this.name;

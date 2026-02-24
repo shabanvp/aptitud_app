@@ -6,9 +6,10 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('users.urls')),
-    path('tests/', include('tests.urls')),
-    path('game/', include('gamification.urls')),
+    path('tests/', include('apps.tests.urls')),
+    path('gamification/', include('gamification.urls')),
     path('events/', include('events.urls')),
+    path('multiplayer/', include('multiplayer.urls')),
 ]
 
 if settings.DEBUG:

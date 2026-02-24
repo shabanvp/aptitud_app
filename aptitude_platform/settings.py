@@ -34,6 +34,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,9 +43,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'users',
     'gamification',
-    'tests',
-    'tournaments',
+    'apps.tests',
     'events',
+    'channels',
+    'apps.multiplayer',
 ]
 
 MIDDLEWARE = [
@@ -70,6 +72,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.users.context_processors.site_settings',
             ],
             'libraries': {
                 'notification_tags': 'users.templatetags.notification_tags',
@@ -79,6 +82,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'aptitude_platform.wsgi.application'
+ASGI_APPLICATION = 'aptitude_platform.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database

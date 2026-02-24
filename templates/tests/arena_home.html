@@ -34,19 +34,18 @@
         </div>
     </a>
 
-    <!-- Room Match (Coming Soon) -->
-    <div class="card mode-card disabled">
-        <div class="mode-visual room-visual">
+    <!-- VS Online Match -->
+    <a href="{% url 'multiplayer:topic_select' %}" class="card mode-card">
+        <div class="mode-visual room-visual" style="filter: none; opacity: 1;">
             <span style="font-size: 4rem;">⚔️</span>
-            <span class="badge-soon">Coming Soon</span>
+            <span class="badge-new" style="position: absolute; top: 1rem; right: 1rem; background: var(--accent-color); color: white; padding: 4px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: 800; text-shadow: 0 0 5px rgba(245, 158, 11, 0.3);">LIVE</span>
         </div>
         <div class="mode-content">
-            <h3>Room Match</h3>
-            <p>Challenge your friends in real-time 1v1 battles. Winner takes all.</p>
-            <button class="btn" disabled
-                style="background: #94a3b8; cursor: not-allowed; box-shadow: none;">Locked</button>
+            <h3>VS Online</h3>
+            <p>Challenge other players in real-time 1v1 matchmaking battles. Winner takes all.</p>
+            <span class="btn" style="margin-top: auto; background: var(--accent-color); color: white;">Find Match</span>
         </div>
-    </div>
+    </a>
 
     <!-- Tournament (Coming Soon) -->
     <div class="card mode-card disabled">

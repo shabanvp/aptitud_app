@@ -10,7 +10,7 @@
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
             <div>
-                <h2 style="margin: 0;">{{ category.name }}</h2>
+                <h2 style="margin: 0;">{{ match.topic }} - VS Online</h2>
                 <div style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;">
                     Question <span id="current-q-num">1</span> of {{ questions|length }}
                 </div>
@@ -23,12 +23,21 @@
 
         <!-- Progress Bar -->
         <div
-            style="width: 100%; background: #e2e8f0; height: 6px; border-radius: 3px; margin-bottom: 2rem; overflow: hidden;">
+            style="width: 100%; background: #e2e8f0; height: 12px; border-radius: 6px; margin-bottom: 2rem; overflow: hidden; position: relative;">
+            <!-- Opponent Progress (Background, slightly transparent) -->
+            <div id="opponent-progress-bar"
+                style="width: 0%; height: 100%; background: #ef4444; opacity: 0.4; position: absolute; top:0; left:0; transition: width 0.3s;"></div>
+            <!-- Player Progress (Foreground) -->
             <div id="progress-bar"
-                style="width: 0%; height: 100%; background: var(--primary-color); transition: width 0.3s;"></div>
+                style="width: 0%; height: 100%; background: var(--primary-color); position: absolute; top:0; left:0; transition: width 0.3s; z-index: 1;"></div>
         </div>
 
-        <form method="post" action="{% url 'submit_test' %}" id="testForm">
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-top: -1.5rem; margin-bottom: 2rem;">
+            <span style="color: var(--primary-color);">You: <span id="my-score">0</span></span>
+            <span style="color: #ef4444;">Opponent: <span id="opp-score">0</span></span>
+        </div>
+
+        <form id="testForm" onsubmit="event.preventDefault(); submitTest();">
             {% csrf_token %}
 
             {% for question in questions %}
@@ -261,16 +270,68 @@
 
 <script>
     let currentQuestion = 1;
-    const totalQuestions = {{ questions| length }};
+    const totalQuestions = {{ questions|length }};
     const timeLimit = 30; // 30 seconds per question
     let timeLeft = timeLimit;
     let timerInterval;
     let isTestActive = false;
     let screenStream = null;
     let cameraStream = null;
+    let currentScore = 0;
+    
+    // WebSockets Setup
+    const matchId = "{{ match.id }}";
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/game/${matchId}/`;
+    let socket;
+    
+    function initWebSocket() {
+        socket = new WebSocket(wsUrl);
+        
+        socket.onopen = function() {
+            console.log("Connected to Game Server");
+        };
+        
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            console.log("WS Data:", data);
+            
+            if (data.type === 'opponent_progress') {
+                if (data.user_id !== {{ request.user.id }}) {
+                    // Update opponent progress bar
+                    const progress = (data.current_question / data.total_questions) * 100;
+                    document.getElementById('opponent-progress-bar').style.width = `${progress}%`;
+                    document.getElementById('opp-score').innerText = data.score;
+                }
+            } else if (data.type === 'player_waiting') {
+                if (data.user_id !== {{ request.user.id }}) {
+                    showNotification("Opponent has finished and is waiting!", "info");
+                }
+            } else if (data.type === 'opponent_forfeit') {
+                if (data.user_id !== {{ request.user.id }}) {
+                    showNotification(`Opponent forfeited! Reason: ${data.reason}`, "success");
+                    // We win automatically? The server handles winner logic. 
+                    // Let's just redirect to results shortly.
+                    setTimeout(() => {
+                        window.location.href = "{% url 'multiplayer:results' match.id %}";
+                    }, 3000);
+                }
+            } else if (data.type === 'match_over') {
+                // Redirect to results immediately
+                window.location.href = "{% url 'multiplayer:results' match.id %}";
+            } else if (data.type === 'error') {
+                alert(data.message);
+            }
+        };
+        
+        socket.onclose = function() {
+            console.log("Game Server Disconnected");
+        };
+    }
 
     // Modified Init - Validation before start
     function init() {
+        initWebSocket();
         {% if site_settings.anti_malpractice_enabled %}
         // We wait for user interaction via overlay
         checkSteps();
@@ -283,6 +344,7 @@
         }
         if (!isTestActive) {
             isTestActive = true;
+            // The bypass skip is complete. Since there is no overlay, start immediately.
             showQuestion(currentQuestion);
             startTimer();
         }
@@ -614,6 +676,12 @@
     function terminateTest(reason) {
         isTestActive = false;
         clearInterval(timerInterval);
+        
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                'action': 'malpractice_detected'
+            }));
+        }
 
         // Create Termination Overlay
         const overlay = document.createElement('div');
@@ -634,7 +702,7 @@
 
         // Force Submit after 3s
         setTimeout(() => {
-            document.getElementById('testForm').submit();
+            window.location.href = "{% url 'multiplayer:results' match.id %}";
         }, 3000);
     }
 
@@ -779,7 +847,7 @@
                 if (currentQuestion < totalQuestions) {
                     nextQuestion(true); // Auto-advance
                 } else {
-                    document.getElementById('testForm').submit();
+                    submitTest();
                 }
             }
         }, 1000);
@@ -795,15 +863,114 @@
     }
 
     function nextQuestion(autoArgs = false) {
+        // Evaluate Current Question before moving on
+        evaluateCurrentQuestion();
+        
         if (currentQuestion < totalQuestions) {
             currentQuestion++;
-            // Note: timeLeft is now reset in showQuestion() based on question type
             showQuestion(currentQuestion);
             startTimer(); // Reset timer for new question
         } else {
-            // Last question submit
-            document.getElementById('testForm').submit();
+            submitTest();
         }
+    }
+    
+    function evaluateCurrentQuestion() {
+        // Find current slide
+        const slide = document.getElementById(`slide-${currentQuestion}`);
+        if (!slide) return;
+        
+        // This is a simplified client-side check just for updating the local score
+        // We rely on the server to actually validate the answers in a real scenario,
+        // but for now we'll do a simple check.
+        
+        const isCoding = slide.getAttribute('data-is-coding') === 'true';
+        if (!isCoding) {
+            // Check selected radio
+            const selectedOpt = slide.querySelector('input[type="radio"]:checked');
+            if (selectedOpt) {
+                // In test_interface, we normally submit to server. 
+                // Here we'll simulate a correct answer if an option is selected. 
+                // Actual marking happens on server later or we can send progress
+                currentScore++; 
+            }
+        } else {
+             const textArea = slide.querySelector('textarea');
+             if(textArea && textArea.value.trim().length > 0) {
+                 currentScore++;
+             }
+        }
+        
+        document.getElementById('my-score').innerText = currentScore;
+        
+        // Broadcast Progress via WS
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                'action': 'update_progress',
+                'current_question': currentQuestion, // they are ON this question now, having completed previous
+                'total_questions': totalQuestions,
+                'score': currentScore
+            }));
+        }
+    }
+    
+    function submitTest() {
+        evaluateCurrentQuestion(); // score the last one
+        
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                'action': 'finish_test',
+                'score': currentScore
+            }));
+        }
+        
+        // Show Waiting screen
+        createWaitingOverlay();
+    }
+    
+    function createWaitingOverlay() {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.95); color: white; z-index: 2147483647;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; font-family: sans-serif; backdrop-filter: blur(10px);
+        `;
+        overlay.innerHTML = `
+            <div style="font-size: 4rem; margin-bottom: 2rem;">⌛</div>
+            <h1 style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                Waiting for Opponent
+            </h1>
+            <p style="font-size: 1.25rem; margin-top: 1rem; color: #cbd5e1;">
+                You finished the test! Hang tight while your opponent finishes.
+            </p>
+            <div style="margin-top: 2rem; width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        `;
+        document.body.appendChild(overlay);
+        
+        // Add spin animation
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+        document.head.appendChild(style);
+    }
+    
+    // Notification helper
+    function showNotification(msg, type='info') {
+        const notif = document.createElement('div');
+        const color = type === 'success' ? '#10b981' : (type === 'error' ? '#ef4444' : '#3b82f6');
+        notif.style.cssText = `
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: ${color}; color: white; padding: 1rem 2rem;
+            border-radius: 9999px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 20000; animation: slideDown 0.3s ease-out; font-weight: bold;
+        `;
+        notif.innerText = msg;
+        document.body.appendChild(notif);
+        
+        setTimeout(() => {
+            notif.style.animation = 'slideUp 0.3s ease-in forwards';
+            setTimeout(() => notif.remove(), 300);
+        }, 4000);
     }
 
     // Option Styling Logic

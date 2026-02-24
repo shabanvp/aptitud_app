@@ -1,5 +1,5 @@
 from django import template
-from users.models import Message
+from apps.users.models import Message
 
 register = template.Library()
 

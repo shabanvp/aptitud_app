@@ -59,3 +59,15 @@ class Certificate(models.Model):
     def is_image(self):
         name = self.file.name.lower()
         return name.endswith('.jpg') or name.endswith('.jpeg') or name.endswith('.png') or name.endswith('.webp')
+
+class SiteSetting(models.Model):
+    anti_malpractice_enabled = models.BooleanField(default=True, help_text="Global toggle for anti-malpractice features across all tests.")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "Global Site Settings"
+
+    @classmethod
+    def get_settings(cls):
+        setting, created = cls.objects.get_or_create(id=1)
+        return setting

@@ -60,6 +60,31 @@
                 <canvas id="mauChart"></canvas>
             </div>
         </div>
+        
+        <!-- Global Settings -->
+        <div class="dashboard-section" style="display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(168, 85, 247, 0.1)); border: 1px solid rgba(79, 70, 229, 0.2);">
+            <div>
+                <h3 style="margin-bottom: 0.25rem;">Global Security Settings</h3>
+                <p style="margin: 0; color: #64748b; font-size: 0.9rem;">Enable or disable anti-malpractice tracking (camera, mic, fullscreen lock) across all test interfaces.</p>
+            </div>
+            
+            <form method="POST" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" name="toggle_malpractice" value="1" 
+                        style="padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;
+                        {% if anti_malpractice_enabled %}
+                        background: #fee2e2; color: #dc2626; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+                        {% else %}
+                        background: #dcfce7; color: #16a34a; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+                        {% endif %}">
+                    {% if anti_malpractice_enabled %}
+                        Disable Security Checks 🔓
+                    {% else %}
+                        Enable Security Checks 🔒
+                    {% endif %}
+                </button>
+            </form>
+        </div>
 
         <div class="tables-grid">
             <!-- Question Bank Stats -->

@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from tests.models import Category
+from apps.tests.models import Category
 
 class Event(models.Model):
     THRESHOLD_CHOICES = [
