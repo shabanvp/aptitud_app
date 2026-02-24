@@ -34,6 +34,7 @@ FILES = [
     {'filename': 'debugging_and_code_logic/debugging_and_code_logic.csv', 'name': 'Debugging and Code Logic', 'slug': 'debugging-and-code-logic'},
     {'filename': 'cognitive_ability/cognitive_ability.csv', 'name': 'Cognitive Ability', 'slug': 'cognitive-ability'},
     {'filename': 'memory_and_attention/memory_and_attention.csv', 'name': 'Memory and Attention', 'slug': 'memory-and-attention'},
+    {'filename': 'clean_general_aptitude_dataset/clean_general_aptitude_dataset.csv', 'name': 'General Aptitude', 'slug': 'general-aptitude'},
 ]
 
 def clean_text(text):

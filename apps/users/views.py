@@ -5,6 +5,11 @@ from django.db.models import Avg, Count, F, Q
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 import json
 
 from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
@@ -49,38 +54,89 @@ def company_onboarding(request):
             return redirect('register')
     return render(request, 'users/company_onboarding.html')
 
+def _send_verification_email(request, user):
+    """Helper: build and send the token-based verification email."""
+    uid   = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    domain = request.get_host()
+    verify_url = f"http://{domain}/verify-email/{uid}/{token}/"
+
+    context = {
+        'user': user,
+        'verify_url': verify_url,
+    }
+    subject = "Verify your Aptitude GO account"
+    body_html = render_to_string('users/email/verify_email.html', context)
+    body_text = (
+        f"Hi {user.username},\n\n"
+        f"Please verify your email by visiting:\n{verify_url}\n\n"
+        "If you did not create this account, ignore this email.\n\n"
+        "– Aptitude GO Team"
+    )
+
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=body_text,
+        from_email=None,          # uses DEFAULT_FROM_EMAIL from settings
+        to=[user.email],
+    )
+    email.attach_alternative(body_html, "text/html")
+    email.send(fail_silently=False)
+
+
 def register(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            
-            # Check for company role
+
+            # Collect onboarding session data
             is_company = request.session.get('is_company', False)
             user.is_company = is_company
-            
+
             if is_company:
                 user.hiring_focus = request.session.get('hiring_focus', '')
-                # Clear session
                 request.session.pop('is_company', None)
                 request.session.pop('hiring_focus', None)
             else:
-                # Apply candidate onboarding data
-                user.current_status = request.session.get('onboarding_status', '')
-                user.interested_field = request.session.get('onboarding_interest', '')
-                # Clear session
+                user.current_status    = request.session.get('onboarding_status', '')
+                user.interested_field  = request.session.get('onboarding_interest', '')
                 request.session.pop('onboarding_status', None)
                 request.session.pop('onboarding_interest', None)
-            
+
+            # Save as INACTIVE until email is verified
+            user.is_active = False
             user.save()
-            
-            login(request, user)
-            if is_company:
-                return redirect('company_dashboard')
-            return redirect('home')
+
+            # Send verification email
+            _send_verification_email(request, user)
+
+            return redirect('email_sent')
     else:
         form = CustomUserCreationForm()
     return render(request, 'users/register.html', {'form': form})
+
+
+def email_sent(request):
+    """Tell the user to check their inbox."""
+    return render(request, 'users/email_sent.html')
+
+
+def verify_email(request, uidb64, token):
+    """Activate the account when the user clicks the email link."""
+    from users.models import CustomUser
+    try:
+        uid  = force_str(urlsafe_base64_decode(uidb64))
+        user = CustomUser.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        user.is_active = True
+        user.save()
+        return render(request, 'users/email_verify_success.html', {'success': True})
+    else:
+        return render(request, 'users/email_verify_success.html', {'success': False})
 
 
 @login_required
