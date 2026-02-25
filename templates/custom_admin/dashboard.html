@@ -175,8 +175,14 @@
                             {% endif %}
                         </td>
                         <td>{{ user.date_joined|date:"M d, Y" }}</td>
-                        <td>
-                            <a href="{% url 'user_profile' user.username %}" class="btn-small" style="text-decoration: none; display: inline-block;">View</a>
+                        <td style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <a href="{% url 'user_profile' user.username %}" class="btn-small" style="text-decoration: none;">View</a>
+                            {% if user.id != request.user.id %}
+                            <form action="{% url 'admin_delete_user' user.id %}" method="post" style="display: inline;" onsubmit="return confirm('ADMIN WARNING: Are you absolutely sure you want to permanently erase the account for {{ user.username }}? This action destroys all associated data and cannot be undone.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-small" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">Delete</button>
+                            </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

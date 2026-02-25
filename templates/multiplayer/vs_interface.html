@@ -66,7 +66,7 @@
                         {% for option in question.options.all %}
                         <label class="option-label" data-q-index="{{ forloop.parentloop.counter }}">
                             <!-- Use loop counter for unique naming across duplicates -->
-                            <input type="radio" name="answer_{{ forloop.parentloop.counter }}" value="{{ option.id }}"
+                            <input type="radio" name="answer_{{ forloop.parentloop.counter }}" value="{{ option.id }}" data-correct="{{ option.is_correct|yesno:'true,false' }}"
                                 style="margin-right: 0.75rem;">
                             <span style="font-size: 1rem;">{{ option.text }}</span>
                         </label>
@@ -642,6 +642,10 @@
     }
 
     function logIncident(reason, severity) {
+        {% if not site_settings.anti_malpractice_enabled %}
+        return; // Disabled by admin
+        {% endif %}
+        
         malpracticeScore += severity;
 
         // Visual Alert
@@ -888,7 +892,7 @@
         if (!isCoding) {
             // Check selected radio
             const selectedOpt = slide.querySelector('input[type="radio"]:checked');
-            if (selectedOpt) {
+            if (selectedOpt && selectedOpt.getAttribute('data-correct') === 'true') {
                 // In test_interface, we normally submit to server. 
                 // Here we'll simulate a correct answer if an option is selected. 
                 // Actual marking happens on server later or we can send progress

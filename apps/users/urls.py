@@ -16,6 +16,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('profile/', views.profile, name='profile'),
     path('profile/edit/', views.edit_profile, name='edit_profile'),
+    path('profile/delete-account/', views.delete_account, name='delete_account'),
     path('profile/upload-certificate/', views.upload_certificate, name='upload_certificate'),
     path('profile/delete-certificate/<int:certificate_id>/', views.delete_certificate, name='delete_certificate'),
     path('profile/<str:username>/', views.profile, name='user_profile'),
@@ -25,4 +26,5 @@ urlpatterns = [
     path('chat/<int:conversation_id>/send/', views.send_message, name='send_message'),
     path('admin-access/', views.admin_access, name='admin_access'),
     path('custom-admin/', views.custom_admin_dashboard, name='custom_admin_dashboard'),
+    path('custom-admin/delete-user/<int:user_id>/', views.admin_delete_user, name='admin_delete_user'),
 ]

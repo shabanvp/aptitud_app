@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, F, Q
 from django.core.serializers.json import DjangoJSONEncoder
@@ -124,7 +125,7 @@ def email_sent(request):
 
 def verify_email(request, uidb64, token):
     """Activate the account when the user clicks the email link."""
-    from users.models import CustomUser
+    from apps.users.models import CustomUser
     try:
         uid  = force_str(urlsafe_base64_decode(uidb64))
         user = CustomUser.objects.get(pk=uid)
@@ -240,6 +241,20 @@ def edit_profile(request):
         form = UserUpdateForm(instance=request.user)
     
     return render(request, 'users/edit_profile.html', {'form': form})
+
+@login_required
+def delete_account(request):
+    """
+    Permanently deletes the user's account and all associated data,
+    freeing up the email address for reuse.
+    """
+    if request.method == 'POST':
+        user = request.user
+        logout(request)
+        user.delete()
+        messages.success(request, "Your account has been permanently deleted.")
+        return redirect('home')
+    return redirect('profile')
 
 @login_required
 def upload_certificate(request):
@@ -422,3 +437,24 @@ def custom_admin_dashboard(request):
     }
     
     return render(request, 'custom_admin/dashboard.html', context)
+
+@login_required
+def admin_delete_user(request, user_id):
+    """
+    Allows a superuser to permanently delete another user's account from the dashboard.
+    """
+    if not request.user.is_superuser:
+        return redirect('home')
+        
+    if request.method == 'POST':
+        target_user = get_object_or_404(CustomUser, id=user_id)
+        
+        # Prevent superusers from accidentally deleting themselves via the dashboard
+        if target_user.id == request.user.id:
+            messages.error(request, "You cannot delete your own admin account from here.")
+        else:
+            username = target_user.username
+            target_user.delete()
+            messages.success(request, f"User '{username}' was permanently deleted.")
+            
+    return redirect('custom_admin_dashboard')

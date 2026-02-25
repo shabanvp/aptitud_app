@@ -597,6 +597,10 @@
     // --- Scoring & Incidents ---
 
     function logIncident(reason, severity) {
+        {% if not site_settings.anti_malpractice_enabled %}
+        return; // Disabled by admin
+        {% endif %}
+        
         malpracticeScore += severity;
         
         // Toast Notification

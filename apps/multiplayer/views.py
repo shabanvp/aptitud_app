@@ -133,9 +133,12 @@ def results(request, match_id):
         
     context = {
         'match': match,
-        'me': me,
-        'opponent': opponent,
-        'is_winner': me.is_winner,
+        'my_player': me,
+        'opponent_player': opponent,
+        'opponent': opponent.user if opponent else None,
+        'my_score': me.score if me else 0,
+        'opponent_score': opponent.score if opponent else 0,
+        'is_winner': me.is_winner if me else False,
         'is_tie': match.winner is None and match.status == 'completed'
     }
     return render(request, 'multiplayer/results.html', context)

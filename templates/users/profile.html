@@ -93,9 +93,16 @@
         </div>
 
         <a href="{% url 'edit_profile' %}" class="btn"
-            style="display: block; width: 100%; box-sizing: border-box; text-align: center; margin-bottom: 1.5rem;">
+            style="display: block; width: 100%; box-sizing: border-box; text-align: center; margin-bottom: 1rem;">
             Edit Profile
         </a>
+
+        <form action="{% url 'delete_account' %}" method="post" onsubmit="return confirm('WARNING: Are you sure you want to permanently delete your account? This action cannot be undone and will erase all your history, coins, and certificates.');" style="margin-bottom: 1.5rem;">
+            {% csrf_token %}
+            <button type="submit" class="btn" style="display: block; width: 100%; box-sizing: border-box; text-align: center; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 600;">
+                Delete Account Permanently
+            </button>
+        </form>
 
         <div
             style="display: flex; justify-content: space-around; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
