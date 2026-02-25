@@ -124,7 +124,6 @@ def email_sent(request):
 
 def verify_email(request, uidb64, token):
     """Activate the account when the user clicks the email link."""
-    from users.models import CustomUser
     try:
         uid  = force_str(urlsafe_base64_decode(uidb64))
         user = CustomUser.objects.get(pk=uid)
