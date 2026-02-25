@@ -14,7 +14,6 @@ from django.template.loader import render_to_string
 import json
 
 from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
-from users.forms import CustomUserCreationForm, CertificateForm, UserUpdateForm
 from apps.users.models import CustomUser, Conversation, Message, Certificate
 from apps.tests.models import TestAttempt
 from gamification.models import MonthlySpin
@@ -125,7 +124,7 @@ def email_sent(request):
 
 def verify_email(request, uidb64, token):
     """Activate the account when the user clicks the email link."""
-    from apps.users.models import CustomUser
+
     try:
         uid  = force_str(urlsafe_base64_decode(uidb64))
         user = CustomUser.objects.get(pk=uid)
