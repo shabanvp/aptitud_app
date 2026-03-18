@@ -33,7 +33,7 @@
 
             {% for question in questions %}
             <div class="question-slide" id="slide-{{ forloop.counter }}"
-                data-is-coding="{{ question.is_coding_problem|lower }}" style="display: none;">
+                data-is-coding="{{ question.is_coding_problem|lower }}" data-time-limit="{{ question.time_limit }}" style="display: none;">
                 <!-- Question Card -->
                 <div class="card" style="margin-bottom: 2rem;">
                     <div
@@ -755,9 +755,11 @@
         if (slide) {
             slide.style.display = 'block';
 
-            // Dynamic Timer: 60s for MCQ, 300s (5 mins) for Coding
+            // Dynamic Timer from backend (fallback to default if missing)
             const isCoding = slide.getAttribute('data-is-coding') === 'true';
-            timeLeft = isCoding ? 300 : 60;
+            const explicitTime = parseInt(slide.getAttribute('data-time-limit'), 10);
+            timeLeft = explicitTime ? explicitTime : (isCoding ? 300 : 60);
+            
             updateTimerDisplay();
 
             // Update UI

@@ -46,23 +46,22 @@ def arena_home(request):
 
 @login_required
 def practice_dashboard(request):
+    from django.db.models import Count
     from django.utils.text import slugify
 
-    # Dynamically find company slugs from the question_bank folder
-    company_base_path = os.path.join(settings.BASE_DIR, 'question_bank', 'company_level_question')
-    company_slugs = []
+    # Find categories that represent companies. A robust way is to check the imported slugs.
+    # Since company categories were imported, we can define a base set, 
+    # OR better yet, check the actual folders once, but fallback safely.
+    # We will identify company categories as those NOT in the core aptitude list.
+    core_slugs = [
+        'general-aptitude', 'logical-reasoning', 'quantitative-aptitude', 
+        'verbal-ability', 'computer-fundamentals', 'programming-aptitude', 
+        'debugging-and-code-logic', 'cognitive-ability', 'memory-and-attention'
+    ]
     
-    if os.path.exists(company_base_path):
-        # Get all subdirectories as potential company slugs
-        company_slugs = [slugify(d) for d in os.listdir(company_base_path) 
-                        if os.path.isdir(os.path.join(company_base_path, d))]
-    
-    # Fallback to hardcoded list if folder is missing or empty (for safety)
-    if not company_slugs:
-        company_slugs = ['accenture', 'cognizant', 'tata-elxsi', 'tcs', 'tcs-ninja', 'wipro-elite-nlth']
-
-    company_categories = Category.objects.filter(slug__in=company_slugs)
-    general_categories = Category.objects.exclude(slug__in=company_slugs)
+    # All non-core categories with at least 1 question are assumed to be "Company Categories"
+    company_categories = Category.objects.exclude(slug__in=core_slugs).annotate(q_count=Count('questions')).filter(q_count__gt=0)
+    general_categories = Category.objects.filter(slug__in=core_slugs).annotate(q_count=Count('questions')).filter(q_count__gt=0)
     
     # Priority sorting based on user's interests
     user_interests = request.user.interested_field.lower() if request.user.is_authenticated and hasattr(request.user, 'interested_field') and request.user.interested_field else ""

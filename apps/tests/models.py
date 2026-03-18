@@ -18,16 +18,24 @@ class Question(models.Model):
         ('MEDIUM', 'Medium'),
         ('HARD', 'Hard'),
     ]
+    QUESTION_TYPE_CHOICES = [
+        ('MCQ', 'Multiple Choice Question'),
+        ('LOGICAL', 'Logical Reasoning'),
+        ('CODING', 'Coding/Programming'),
+    ]
+    
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='questions')
     text = models.TextField()
     explanation = models.TextField(blank=True, help_text="Explanation for the correct answer")
     difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default='MEDIUM')
+    question_type = models.CharField(max_length=15, choices=QUESTION_TYPE_CHOICES, default='MCQ')
+    time_limit = models.IntegerField(default=60, help_text="Time limit for this question in seconds")
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def is_coding_problem(self):
-        """Coding problems have only 1 placeholder option; MCQs have 2+."""
-        return self.options.count() <= 1
+        """Coding problems have only 1 placeholder option; MCQs have 2+. Or explicitly Typed."""
+        return self.question_type == 'CODING' or self.options.count() <= 1
 
     def __str__(self):
         return self.text[:50]
