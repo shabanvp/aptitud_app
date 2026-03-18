@@ -1,12 +1,14 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpResponse, Http404
 from django.conf import settings
 from .models import Category, Question, TestAttempt, Option
 from gamification.models import MonthlySpin
 import random
 import os
+import io
+import fitz  # PyMuPDF
 
 @login_required
 def practice_arena(request):
@@ -273,3 +275,73 @@ def submit_test(request):
         }
         return render(request, 'tests/result.html', context)
     return redirect('practice_dashboard')
+
+
+@login_required
+def serve_watermarked_pdf(request, filename):
+    """
+    Dynamically overlay the Aptitude GO watermark on every page of a
+    Practice-module PDF and stream the result.  The source file on disk is
+    NEVER modified.
+
+    Query params:
+        ?download=1  →  Content-Disposition: attachment  (triggers save-to-disk)
+        (none)       →  Content-Disposition: inline       (opens in browser / preview)
+    """
+    # ── Access control: candidates only ──────────────────────────────────────
+    if request.user.is_company or request.user.is_superuser:
+        return HttpResponseForbidden("Access Denied: Practice Arena is for Candidates only.")
+
+    # ── Validate filename (no path traversal, must be a .pdf) ────────────────
+    safe_filename = os.path.basename(filename)
+    if not safe_filename.lower().endswith('.pdf'):
+        raise Http404("Not a PDF file.")
+
+    pdf_path = os.path.join(settings.MEDIA_ROOT, 'practice_questions', safe_filename)
+    if not os.path.isfile(pdf_path):
+        raise Http404("PDF not found.")
+
+    # ── Locate watermark PNG (stored next to this views.py) ──────────────────
+    wm_path = os.path.join(os.path.dirname(__file__), 'watermark.png')
+    if not os.path.isfile(wm_path):
+        # Fallback: serve the original PDF without watermark rather than crash
+        with open(pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        disposition = 'attachment' if request.GET.get('download') else 'inline'
+        response['Content-Disposition'] = f'{disposition}; filename="{safe_filename}"'
+        return response
+
+    # ── Apply watermark with PyMuPDF ─────────────────────────────────────────
+    doc = fitz.open(pdf_path)
+
+    for page in doc:
+        page_rect = page.rect  # fitz.Rect (x0, y0, x1, y1)
+
+        # Place watermark at 50% of page width, centered (avoid edge-to-edge)
+        wm_width  = page_rect.width  * 0.50
+        wm_height = page_rect.height * 0.25   # preserve aspect ratio space
+
+        x0 = (page_rect.width  - wm_width)  / 2
+        y0 = (page_rect.height - wm_height) / 2
+        wm_rect = fitz.Rect(x0, y0, x0 + wm_width, y0 + wm_height)
+
+        # insert_image with alpha < 1 achieves the low-opacity look
+        # overlay=False → drawn strictly *behind* existing content (background layer)
+        page.insert_image(
+            wm_rect,
+            filename=wm_path,
+            overlay=False,   # strictly background layer
+            alpha=20,        # 20 / 255 ≈ 8% opacity
+        )
+
+    # ── Write to in-memory buffer and return ─────────────────────────────────
+    buf = io.BytesIO()
+    doc.save(buf, garbage=4, deflate=True)
+    doc.close()
+    buf.seek(0)
+
+    disposition = 'attachment' if request.GET.get('download') else 'inline'
+    response = HttpResponse(buf.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'{disposition}; filename="{safe_filename}"'
+    return response

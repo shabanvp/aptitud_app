@@ -35,10 +35,10 @@
                 <span class="file-size">📦 {{ pdf.size }}</span>
             </div>
             <div class="actions">
-                <a href="{{ pdf.url }}" target="_blank" class="btn outline-btn">
+                <a href="{% url 'serve_watermarked_pdf' pdf.name %}" target="_blank" class="btn outline-btn">
                     👁 Preview
                 </a>
-                <a href="{{ pdf.url }}" download class="btn">
+                <a href="{% url 'serve_watermarked_pdf' pdf.name %}?download=1" download class="btn">
                     ⬇ Download
                 </a>
             </div>
