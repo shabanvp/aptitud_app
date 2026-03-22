@@ -764,6 +764,9 @@
             }
         });
     </script>
+    {% if user.is_authenticated %}
+        {% include 'components/aptix_chat.html' %}
+    {% endif %}
 </body>
 
 </html>

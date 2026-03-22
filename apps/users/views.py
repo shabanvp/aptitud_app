@@ -376,7 +376,8 @@ def admin_access(request):
             if not superuser:
                 superuser = User.objects.create_superuser('admin', 'admin@example.com', 'admin')
             
-            login(request, superuser)
+            # Specify the backend since we have auth multiple backends configured
+            superuser.backend = 'django.contrib.auth.backends.ModelBackend'
             login(request, superuser)
             return redirect('custom_admin_dashboard')
         else:
@@ -457,3 +458,81 @@ def admin_delete_user(request, user_id):
             messages.success(request, f"User '{username}' was permanently deleted.")
             
     return redirect('custom_admin_dashboard')
+
+import json
+from django.http import JsonResponse
+from apps.users.models import AIChatMessage
+from django.views.decorators.csrf import csrf_protect
+
+@login_required
+@csrf_protect
+def aptix_chat_api(request):
+    """
+    Receives chat messages from the Aptix popup, compiles context, and queries the LLM.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        user_msg = data.get('message', '').strip()
+        if not user_msg:
+            return JsonResponse({'error': 'No message provided'}, status=400)
+            
+        # 1. Save user message to memory
+        new_user_msg = AIChatMessage.objects.create(user=request.user, role='user', content=user_msg)
+        
+        # 2. Build the System Context Prompt
+        wallet = getattr(request.user, 'coins', 0)
+        health = getattr(request.user, 'lives', 5)
+
+        system_context = f"""
+        [ROLE]
+        You are 'Aptix', a friendly, concise AI Mentor for the 'Aptitude GO' platform.
+        Rule 1: Never give direct answers to live test questions.
+        Rule 2: Motivate the user and explain concepts clearly.
+        Rule 3: Keep your answers very short and conversational. Use emojis.
+        
+        [USER REALTIME STATS]
+        Name: {request.user.first_name or request.user.username}
+        Level: {request.user.level} (XP: {request.user.exp})
+        Wallet: {wallet} Coins
+        Health: {health}/5 Lives
+        Dream Job: {request.user.interested_field}
+        """
+        
+        # 3. Initialize Gemini
+        import google.generativeai as genai
+        from django.conf import settings
+        
+        api_key = getattr(settings, 'GEMINI_API_KEY', None)
+        if not api_key:
+             return JsonResponse({'success': True, 'response': "API Key not found in backend."})
+
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash",
+            system_instruction=system_context
+        )
+        
+        # Build history format for Gemini
+        previous_msgs = AIChatMessage.objects.filter(user=request.user).exclude(id=new_user_msg.id).order_by('-timestamp')[:10]
+        history = []
+        # Reverse to chronological order
+        for msg in reversed(previous_msgs):
+            history_role = 'user' if msg.role == 'user' else 'model'
+            history.append(
+                {"role": history_role, "parts": [msg.content]}
+            )
+            
+        chat_session = model.start_chat(history=history)
+        response = chat_session.send_message(user_msg)
+        bot_response = response.text
+        
+        # 4. Save Bot response to memory
+        AIChatMessage.objects.create(user=request.user, role='assistant', content=bot_response)
+        
+        return JsonResponse({'success': True, 'response': bot_response})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

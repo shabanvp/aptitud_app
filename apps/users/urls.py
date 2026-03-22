@@ -41,4 +41,5 @@ urlpatterns = [
     path('admin-access/', views.admin_access, name='admin_access'),
     path('custom-admin/', views.custom_admin_dashboard, name='custom_admin_dashboard'),
     path('custom-admin/delete-user/<int:user_id>/', views.admin_delete_user, name='admin_delete_user'),
+    path('api/aptix/', views.aptix_chat_api, name='aptix_chat_api'),
 ]

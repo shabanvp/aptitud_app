@@ -25,6 +25,18 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return self.username
 
+class AIChatMessage(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='aptix_conversations')
+    role = models.CharField(max_length=10, choices=[('user', 'User'), ('assistant', 'Assistant')])
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.role} - {self.timestamp}"
+
 class Conversation(models.Model):
     participants = models.ManyToManyField(CustomUser, related_name='conversations')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -5,7 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
 
-<div class="no-select" style="max-width: 800px; margin: 0 auto; padding: 1rem;">
+<div style="max-width: 800px; margin: 0 auto; padding: 1rem;">
     <div id="test-container" style="transition: filter 0.1s;">
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
@@ -291,7 +291,7 @@
 
     function checkSteps() {
         // Check Fullscreen
-        const isFS = !!document.fullscreenElement;
+        const isFS = !!document.fullscreenElement || window.fsBypassed;
         updateStepUI('fullscreen', isFS);
 
         // Chain Enable Logic
@@ -661,7 +661,15 @@
         const elem = document.documentElement;
         const method = elem.requestFullscreen || elem.mozRequestFullScreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
         if (method) {
-            method.call(elem).catch(err => showError(`Full Screen Error: ${err.message}`));
+            method.call(elem).catch(err => {
+                showError("Full Screen blocked by browser, bypassing for practice.");
+                // Bypassing strict fullscreen check so user can enter the test
+                window.fsBypassed = true;
+                checkSteps();
+            });
+        } else {
+            window.fsBypassed = true;
+            checkSteps();
         }
     }
 

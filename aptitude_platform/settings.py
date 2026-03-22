@@ -163,3 +163,6 @@ EMAIL_HOST_USER = 'aptitudego.official@gmail.com'
 #   Google Account → Security → 2-Step Verification → App Passwords
 EMAIL_HOST_PASSWORD = 'pildoafybbjgjtmg'
 DEFAULT_FROM_EMAIL = 'Aptitude GO <aptitudego.official@gmail.com>'
+
+# Gemini API Key
+GEMINI_API_KEY = "AIzaSyCRJiWBnE7-5ve-STFqTmmStrkWgiBZY7A"
