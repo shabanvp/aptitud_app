@@ -1,7 +1,7 @@
 import os
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
-from tests.models import Category, Question, Option
+from apps.tests.models import Category, Question, Option
 
 
 class Command(BaseCommand):

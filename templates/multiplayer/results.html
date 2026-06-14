@@ -137,6 +137,42 @@
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
+
+    .answers-section {
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 2px dashed rgba(100, 116, 139, 0.2);
+        text-align: left;
+    }
+
+    .answer-card {
+        background: rgba(15, 23, 42, 0.03);
+        border: 1px solid rgba(100, 116, 139, 0.1);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    [data-theme="dark"] .answer-card {
+        background: rgba(15, 23, 42, 0.3);
+        border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .correct-option {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #dcfce3;
+        border: 1px solid #86efac;
+        border-radius: 8px;
+        color: #065f46;
+        font-weight: 500;
+    }
+    
+    [data-theme="dark"] .correct-option {
+        background: rgba(16, 185, 129, 0.1);
+        border-color: rgba(16, 185, 129, 0.3);
+        color: #34d399;
+    }
 </style>
 
 <div class="results-container">
@@ -204,6 +240,35 @@
         <a href="{% url 'multiplayer:topic_select' %}" class="btn">Play Again</a>
         <a href="{% url 'arena_home' %}" class="btn btn-secondary">Back to Arena</a>
     </div>
+
+    {% if questions %}
+    <div class="answers-section">
+        <h2 style="margin-bottom: 1.5rem; text-align: center;">Match Questions & Correct Answers</h2>
+        {% for question in questions %}
+            <div class="answer-card">
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: var(--text-color);">
+                    Q{{ forloop.counter }}. {{ question.text|safe }}
+                </div>
+                
+                {% if question.is_coding_problem %}
+                    <div class="correct-option">
+                        <strong>Expected Logic / Answer:</strong><br>
+                        This was a coding/descriptive problem. <br>
+                        <em>(No exact multiple-choice answer available)</em>
+                    </div>
+                {% else %}
+                    {% for option in question.options.all %}
+                        {% if option.is_correct %}
+                            <div class="correct-option">
+                                ✓ {{ option.text }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 
 {% endblock %}

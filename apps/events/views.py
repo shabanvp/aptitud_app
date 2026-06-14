@@ -1,11 +1,18 @@
+import json
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.db.models import Count, Q
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from .models import Event, EventQuestion, EventRegistration
 from .forms import EventForm, EventQuestionForm
 from django.forms import modelformset_factory
+from apps.tests.models import Category
+from apps.users.views import token_required
 
 @login_required
 def recruiter_dashboard(request):
@@ -174,3 +181,108 @@ def take_event(request, event_id):
 
     questions = event.questions.all()[:event.total_questions]
     return render(request, 'events/take_event.html', {'event': event, 'questions': questions})
+
+
+@csrf_exempt
+@token_required
+def api_recruiter_events(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Only GET requests are allowed.'}, status=405)
+
+    if not request.user.is_company:
+        return JsonResponse({'error': 'Only recruiter accounts may access this endpoint.'}, status=403)
+
+    events = Event.objects.filter(recruiter=request.user).order_by('-created_at')
+    data = []
+    for event in events:
+        data.append({
+            'id': event.id,
+            'title': event.title,
+            'description': event.description,
+            'category': {
+                'id': event.category.id if event.category else None,
+                'name': event.category.name if event.category else None,
+            } if event.category else None,
+            'start_time': event.start_time.isoformat(),
+            'end_time': event.end_time.isoformat(),
+            'total_questions': event.total_questions,
+            'time_limit_seconds': event.time_limit_seconds,
+            'threshold_type': event.threshold_type,
+            'threshold_value': event.threshold_value,
+            'is_active': event.is_active,
+            'created_at': event.created_at.isoformat(),
+            'registrations_count': event.registrations.count(),
+        })
+
+    return JsonResponse({'events': data})
+
+
+@csrf_exempt
+@token_required
+def api_create_event(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST requests are allowed.'}, status=405)
+
+    if not request.user.is_company:
+        return JsonResponse({'error': 'Only recruiter accounts may create events.'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+
+    title = data.get('title', '').strip()
+    description = data.get('description', '').strip()
+    category_id = data.get('category_id')
+    start_time = parse_datetime(data.get('start_time', ''))
+    end_time = parse_datetime(data.get('end_time', ''))
+    total_questions = int(data.get('total_questions', 10))
+    time_limit_seconds = int(data.get('time_limit_seconds', 600))
+    threshold_type = data.get('threshold_type', 'TIME')
+    threshold_value = int(data.get('threshold_value', 0))
+    is_active = data.get('is_active', True)
+
+    if not title or not start_time or not end_time:
+        return JsonResponse({'error': 'Title, start_time, and end_time are required.'}, status=400)
+
+    category = None
+    if category_id:
+        category = Category.objects.filter(id=category_id).first()
+
+    if end_time <= start_time:
+        return JsonResponse({'error': 'End time must be after start time.'}, status=400)
+
+    event = Event.objects.create(
+        recruiter=request.user,
+        title=title,
+        description=description,
+        category=category,
+        start_time=start_time,
+        end_time=end_time,
+        total_questions=total_questions,
+        time_limit_seconds=time_limit_seconds,
+        threshold_type=threshold_type,
+        threshold_value=threshold_value,
+        is_active=is_active,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'event': {
+            'id': event.id,
+            'title': event.title,
+            'description': event.description,
+            'category': {
+                'id': event.category.id if event.category else None,
+                'name': event.category.name if event.category else None,
+            } if event.category else None,
+            'start_time': event.start_time.isoformat(),
+            'end_time': event.end_time.isoformat(),
+            'total_questions': event.total_questions,
+            'time_limit_seconds': event.time_limit_seconds,
+            'threshold_type': event.threshold_type,
+            'threshold_value': event.threshold_value,
+            'is_active': event.is_active,
+            'created_at': event.created_at.isoformat(),
+        }
+    }, status=201)

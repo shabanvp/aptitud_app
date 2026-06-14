@@ -8,4 +8,5 @@ urlpatterns = [
     path('matchmaking/<str:topic>/', views.matchmaking, name='matchmaking'),
     path('game/<int:match_id>/', views.game_room, name='game_room'),
     path('results/<int:match_id>/', views.results, name='results'),
+    path('match-status/<int:match_id>/', views.match_status, name='match_status'),
 ]

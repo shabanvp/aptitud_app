@@ -42,4 +42,12 @@ urlpatterns = [
     path('custom-admin/', views.custom_admin_dashboard, name='custom_admin_dashboard'),
     path('custom-admin/delete-user/<int:user_id>/', views.admin_delete_user, name='admin_delete_user'),
     path('api/aptix/', views.aptix_chat_api, name='aptix_chat_api'),
+    path('api/auth/login/', views.api_login, name='api_login'),
+    path('api/auth/register/', views.api_register, name='api_register'),
+    path('api/profile/', views.api_profile, name='api_profile'),
+    path('api/profile/update/', views.api_profile_update, name='api_profile_update'),
+    path('api/profile/<str:username>/', views.api_profile, name='api_profile_by_username'),
+    path('api/recruiter/candidates/', views.api_recruiter_candidates, name='api_recruiter_candidates'),
+    path('api/recruiter/candidates/<str:username>/', views.api_recruiter_candidate_detail, name='api_recruiter_candidate_detail'),
 ]
+

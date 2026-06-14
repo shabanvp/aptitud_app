@@ -93,20 +93,8 @@ def game_room(request, match_id):
     opponent_entry = MatchPlayer.objects.filter(match=match).exclude(user=request.user).first()
     opponent = opponent_entry.user if opponent_entry else None
     
-    # Pre-load Questions for the Game (5 random match questions)
-    # The 'topic' on the Match model should ideally map to Category slug or name
-    # Using topic fallback if exactly matched, otherwise any 10 questions
-    category_slug = match.topic
-    questions_query = Question.objects.filter(category__slug=category_slug)
-    
-    if not questions_query.exists():
-        # Fallback to any questions if no category matches the slug exactly
-        questions_query = Question.objects.all()
-        
-    all_questions = list(questions_query.prefetch_related('options'))
-    
-    # Select 10 questions for multiplayer
-    selected_questions = random.sample(all_questions, min(len(all_questions), 10))
+    # Load Questions for the Game from the match instance
+    selected_questions = list(match.questions.prefetch_related('options').all())
     
     # We pass the pure django objects so the template can iterate natively 
     # (questions.options.all, question.is_coding_problem)
@@ -139,6 +127,14 @@ def results(request, match_id):
         'my_score': me.score if me else 0,
         'opponent_score': opponent.score if opponent else 0,
         'is_winner': me.is_winner if me else False,
-        'is_tie': match.winner is None and match.status == 'completed'
+        'is_tie': match.winner is None and match.status == 'completed',
+        'questions': match.questions.prefetch_related('options').all()
     }
     return render(request, 'multiplayer/results.html', context)
+
+
+@login_required
+def match_status(request, match_id):
+    """API view to poll match status."""
+    match = get_object_or_404(Match, id=match_id)
+    return JsonResponse({'status': match.status})

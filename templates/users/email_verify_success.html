@@ -22,8 +22,8 @@
         <p style="color: #64748b; font-size: 1rem; line-height: 1.7; margin-bottom: 2rem;">
             Your account is now active. You can log in and start your Aptitude GO journey!
         </p>
-        <a href="{% url 'login' %}" class="btn" style="width: 100%; text-align: center;">
-            Go to Login
+        <a href="{% if next %}{{ next }}{% else %}{% url 'login' %}{% endif %}" class="btn" style="width: 100%; text-align: center;">
+            {% if next %}Go to Flutter App{% else %}Go to Login{% endif %}
         </a>
 
         {% else %}
@@ -45,9 +45,9 @@
             This verification link is no longer valid. It may have expired or already been used.<br>
             Please register again to get a new verification email.
         </p>
-        <a href="{% url 'register' %}" class="btn"
+        <a href="{% if next %}{{ next }}{% else %}{% url 'register' %}{% endif %}" class="btn"
             style="width: 100%; text-align: center; background: linear-gradient(135deg, #ef4444, #f97316);">
-            Register Again
+            {% if next %}Go to Flutter App{% else %}Register Again{% endif %}
         </a>
         {% endif %}
 

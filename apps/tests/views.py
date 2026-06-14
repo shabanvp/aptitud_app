@@ -344,3 +344,222 @@ def serve_watermarked_pdf(request, filename):
     response = HttpResponse(buf.read(), content_type='application/pdf')
     response['Content-Disposition'] = f'{disposition}; filename="{safe_filename}"'
     return response
+
+
+# ═══════════════════════════════════════════════════════════════════
+# FLUTTER REST API ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.db.models import Count, Q
+from django.contrib.auth import get_user_model
+import json
+from datetime import date, timedelta
+
+def api_categories(request):
+    """GET /api/tests/categories/ — all categories with question counts."""
+    cats = Category.objects.annotate(q_count=Count('questions')).filter(q_count__gt=0).order_by('name')
+    data = [{'id': c.id, 'name': c.name, 'slug': c.slug, 'description': c.description, 'question_count': c.q_count} for c in cats]
+    return JsonResponse({'categories': data})
+
+
+def api_questions(request):
+    """GET /api/tests/questions/?category=<slug>&difficulty=<EASY|MEDIUM|HARD>&limit=<n>&offset=<n>"""
+    category_slug = request.GET.get('category', '')
+    difficulty = request.GET.get('difficulty', '')
+    limit = min(int(request.GET.get('limit', 20)), 50)   # cap at 50
+    offset = int(request.GET.get('offset', 0))
+
+    qs = Question.objects.select_related('category').prefetch_related('options')
+    if category_slug:
+        qs = qs.filter(category__slug=category_slug)
+    if difficulty:
+        qs = qs.filter(difficulty=difficulty.upper())
+
+    total = qs.count()
+    questions = list(qs.order_by('id')[offset: offset + limit])
+
+    data = []
+    for q in questions:
+        options = [{'id': o.id, 'text': o.text, 'is_correct': o.is_correct} for o in q.options.all()]
+        data.append({
+            'id': q.id,
+            'text': q.text,
+            'category': q.category.name,
+            'category_slug': q.category.slug,
+            'difficulty': q.difficulty,
+            'question_type': q.question_type,
+            'time_limit': q.time_limit,
+            'explanation': q.explanation,
+            'options': options,
+        })
+    return JsonResponse({'questions': data, 'total': total, 'offset': offset, 'limit': limit})
+
+
+@csrf_exempt
+def api_submit_answer(request):
+    """POST /api/tests/submit/ — submit a single answer, update user stats."""
+    from users.views import token_required
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    auth_header = request.headers.get('Authorization', '')
+    token_str = auth_header.replace('Token ', '').strip()
+
+    from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+    signer = TimestampSigner()
+    try:
+        username = signer.unsign(token_str, max_age=60 * 60 * 24 * 30)
+        User = get_user_model()
+        user = User.objects.get(username=username)
+    except Exception:
+        return JsonResponse({'error': 'Invalid or expired token'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    question_id = data.get('question_id')
+    selected_option_id = data.get('selected_option_id')
+    code_answer = (data.get('code_answer') or '').strip()
+    daily_challenge = data.get('daily_challenge', False)
+
+    try:
+        question = Question.objects.prefetch_related('options').get(pk=question_id)
+    except Question.DoesNotExist:
+        return JsonResponse({'error': 'Question not found'}, status=404)
+
+    is_coding_problem = question.is_coding_problem
+    correct_option = question.options.filter(is_correct=True).first()
+    selected_option = question.options.filter(pk=selected_option_id).first() if selected_option_id else None
+
+    if is_coding_problem:
+        is_correct = bool(code_answer)
+    else:
+        is_correct = selected_option is not None and selected_option.is_correct
+
+    coins_earned = 50 if is_correct else 0
+    exp_earned = 100 if is_correct else 0
+
+    if is_correct:
+        user.coins += coins_earned
+        user.exp += exp_earned
+        new_level = 1 + (user.exp // 300)
+        user.level = max(user.level, new_level)
+    else:
+        if user.lives > 0:
+            user.lives -= 1
+    user.save()
+
+    TestAttempt.objects.create(
+        user=user,
+        category=question.category,
+        score=1 if is_correct else 0,
+        total_questions=1,
+        coins_earned=coins_earned,
+        exp_earned=exp_earned,
+        mode='SOLO',
+    )
+
+    # Track daily challenge progress (store in session-less way via date-counted attempts)
+    today_attempts = TestAttempt.objects.filter(
+        user=user,
+        completed_at__date=date.today(),
+        mode='SOLO'
+    ).count()
+
+    return JsonResponse({
+        'is_correct': is_correct,
+        'is_coding_problem': is_coding_problem,
+        'correct_option_id': correct_option.id if correct_option else None,
+        'explanation': question.explanation or ('Your written answer has been recorded.' if is_coding_problem else ''),
+        'coins_earned': coins_earned,
+        'exp_earned': exp_earned,
+        'user': {
+            'level': user.level,
+            'exp': user.exp,
+            'coins': user.coins,
+            'lives': user.lives,
+        },
+        'daily_completed': today_attempts,
+    })
+
+
+def api_leaderboard(request):
+    """GET /api/tests/leaderboard/?limit=10 — top candidates ranked by level+exp."""
+    limit = int(request.GET.get('limit', 10))
+    User = get_user_model()
+    top_users = User.objects.filter(is_company=False, is_active=True).order_by('-level', '-exp')[:limit]
+    data = [
+        {
+            'rank': i + 1,
+            'username': u.username,
+            'level': u.level,
+            'exp': u.exp,
+            'coins': u.coins,
+            'interested_field': u.interested_field or '',
+        }
+        for i, u in enumerate(top_users)
+    ]
+    return JsonResponse({'leaderboard': data})
+
+
+def api_user_stats(request):
+    """GET /api/tests/stats/ — authenticated user progress stats.
+    Returns empty stats gracefully when token is missing/invalid.
+    """
+    auth_header = request.headers.get('Authorization', '')
+    token_str = auth_header.replace('Token ', '').strip()
+
+    EMPTY_STATS = {
+        'total_attempted': 0,
+        'accuracy': 0,
+        'tests_passed': 0,
+        'streak': 0,
+        'daily_completed': 0,
+        'daily_goal': 5,
+    }
+
+    if not token_str:
+        return JsonResponse(EMPTY_STATS)
+
+    from django.core.signing import TimestampSigner
+    signer = TimestampSigner()
+    try:
+        username = signer.unsign(token_str, max_age=60 * 60 * 24 * 30)
+        User = get_user_model()
+        user = User.objects.get(username=username)
+    except Exception:
+        return JsonResponse(EMPTY_STATS)
+
+    attempts = TestAttempt.objects.filter(user=user)
+    total_attempted = attempts.count()
+    total_correct = sum(a.score for a in attempts)
+    total_questions_seen = sum(a.total_questions for a in attempts)
+    accuracy = round((total_correct / total_questions_seen * 100), 1) if total_questions_seen > 0 else 0
+    tests_passed = attempts.filter(score__gte=7).count()
+
+    # Daily challenge: count individual questions answered today
+    from apps.tests.models import Question
+    today_count = attempts.filter(completed_at__date=date.today()).count()
+
+    # Streak: count consecutive days with at least 1 attempt
+    streak = 0
+    check_date = date.today()
+    while True:
+        if attempts.filter(completed_at__date=check_date).exists():
+            streak += 1
+            check_date -= timedelta(days=1)
+        else:
+            break
+
+    return JsonResponse({
+        'total_attempted': total_attempted,
+        'accuracy': accuracy,
+        'tests_passed': tests_passed,
+        'streak': streak,
+        'daily_completed': today_count,
+        'daily_goal': 5,
+    })
+

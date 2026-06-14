@@ -211,7 +211,7 @@
     <h1 style="margin-bottom: 1rem;">Secure Test Environment</h1>
 
     <div
-        style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%;">
+        style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%; color: #1e293b;">
         <div class="step-item" id="step-fullscreen"
             style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon"
@@ -227,7 +227,7 @@
         </div>
 
         <div class="step-item" id="step-proctor"
-            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon"
                 style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
                 2</div>
@@ -241,7 +241,7 @@
         </div>
 
         <div class="step-item" id="step-devices"
-            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon"
                 style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
                 3</div>
@@ -269,11 +269,23 @@
     let screenStream = null;
     let cameraStream = null;
 
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+        window.fsBypassed = true;
+        screenStream = { active: true, getVideoTracks: function() { return [{ getSettings: function(){ return {}; }, onended: null }]; } };
+    }
+
     // Modified Init - Validation before start
     function init() {
         {% if site_settings.anti_malpractice_enabled %}
-        // We wait for user interaction via overlay
-        checkSteps();
+        if (isMobile) {
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+            const container = document.getElementById('test-container');
+            if (container) { container.style.visibility = 'visible'; container.style.opacity = '1'; }
+            if (!isTestActive) { isTestActive = true; showQuestion(currentQuestion); startTimer(); }
+        } else {
+            checkSteps();
+        }
         {% else %}
         document.getElementById('fullscreen-overlay').style.display = 'none';
         const container = document.getElementById('test-container');
@@ -290,38 +302,27 @@
     }
 
     function checkSteps() {
-        // Check Fullscreen
-        const isFS = !!document.fullscreenElement || window.fsBypassed;
+        const isFS = !!document.fullscreenElement || !!window.fsBypassed;
         updateStepUI('fullscreen', isFS);
-
-        // Chain Enable Logic
-        // 1. Fullscreen -> 2. Proctoring -> 3. Devices
 
         const proctorStep = document.getElementById('step-proctor');
         const deviceStep = document.getElementById('step-devices');
         const isProctorDone = !!screenStream;
         const isDeviceDone = !!cameraStream;
 
-        if (isFS) {
-            proctorStep.style.opacity = '1';
-            proctorStep.style.pointerEvents = 'all';
-        } else {
-            proctorStep.style.opacity = '0.5';
-            proctorStep.style.pointerEvents = 'none';
-        }
+        proctorStep.style.opacity = '1';
+        proctorStep.style.pointerEvents = 'all';
+        deviceStep.style.opacity = '1';
+        deviceStep.style.pointerEvents = 'all';
 
-        if (isFS && isProctorDone) {
-            deviceStep.style.opacity = '1';
-            deviceStep.style.pointerEvents = 'all';
-        } else {
-            deviceStep.style.opacity = '0.5';
-            deviceStep.style.pointerEvents = 'none';
+        if (isMobile) {
+            document.getElementById('step-proctor').style.display = 'none';
+            document.getElementById('step-fullscreen').style.display = 'none';
         }
 
         updateStepUI('proctor', isProctorDone);
         updateStepUI('devices', isDeviceDone);
 
-        // If ALL done, start test
         if (isFS && isProctorDone && isDeviceDone) {
             document.getElementById('fullscreen-overlay').style.display = 'none';
             const container = document.getElementById('test-container');

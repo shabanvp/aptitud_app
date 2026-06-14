@@ -9,6 +9,10 @@ urlpatterns = [
     path('<int:event_id>/cancel/', views.cancel_event, name='cancel_event'),
     path('<int:event_id>/results/', views.event_results, name='event_results'),
     
+    # Recruiter API URLs
+    path('api/recruiter/', views.api_recruiter_events, name='api_recruiter_events'),
+    path('api/create/', views.api_create_event, name='api_create_event'),
+
     # Student URLs
     path('', views.event_list, name='event_list'),
     path('<int:event_id>/', views.event_detail, name='event_detail'),

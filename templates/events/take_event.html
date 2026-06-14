@@ -26,7 +26,7 @@
             <span class="check-mark" style="display: none; color: #10b981; font-size: 1.5rem;">✓</span>
         </div>
 
-        <div class="step-item" id="step-proctor" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+        <div class="step-item" id="step-proctor" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon" style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #475569;">2</div>
             <div style="flex: 1;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: #1e293b;">Screen Monitoring</h3>
@@ -36,7 +36,7 @@
             <span class="check-mark" style="display: none; color: #10b981; font-size: 1.5rem;">✓</span>
         </div>
 
-        <div class="step-item" id="step-devices" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+        <div class="step-item" id="step-devices" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon" style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #475569;">3</div>
             <div style="flex: 1;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: #1e293b;">Environment Check</h3>
@@ -204,6 +204,13 @@
     // Proctoring Streams
     let screenStream = null;
     let cameraStream = null;
+
+    // Mobile detection — getDisplayMedia and fullscreen not supported on Android
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+        window.fsBypassed = true;
+        screenStream = { active: true, getVideoTracks: function() { return [{ getSettings: function(){ return {}; }, onended: null }]; } };
+    }
     
     // AI Models & Audio
     let audioContext, analyser, microphone, javascriptNode;
@@ -220,8 +227,15 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         {% if site_settings.anti_malpractice_enabled %}
-        checkSteps();
-        setupSecurity(); // Browser-level security
+        if (isMobile) {
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+            const container = document.getElementById('test-container');
+            if(container) { container.style.visibility = 'visible'; container.style.opacity = '1'; }
+            if (!isTestActive) { isTestActive = true; showQuestion(currentQuestion); startTimer(); }
+        } else {
+            checkSteps();
+            setupSecurity();
+        }
         {% else %}
         document.getElementById('fullscreen-overlay').style.display = 'none';
         const container = document.getElementById('test-container');
@@ -305,8 +319,7 @@
 
     function checkSteps() {
         const doc = window.document;
-        const isFS = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
-        console.log("checkSteps - isFS:", isFS);
+        const isFS = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement) || !!window.fsBypassed;
         updateStepUI('fullscreen', isFS);
         
         const proctorStep = document.getElementById('step-proctor');
@@ -314,27 +327,20 @@
         const isProctorDone = !!screenStream;
         const isDeviceDone = !!cameraStream;
         
-        // Enforce sequence
-        if (isFS) {
-            proctorStep.style.opacity = '1';
-            proctorStep.style.pointerEvents = 'all';
-        } else {
-            proctorStep.style.opacity = '0.5';
-            proctorStep.style.pointerEvents = 'none';
-        }
-        
-        if (isFS && isProctorDone) {
-            deviceStep.style.opacity = '1';
-            deviceStep.style.pointerEvents = 'all';
-        } else {
-            deviceStep.style.opacity = '0.5';
-            deviceStep.style.pointerEvents = 'none';
+        proctorStep.style.opacity = '1';
+        proctorStep.style.pointerEvents = 'all';
+        deviceStep.style.opacity = '1';
+        deviceStep.style.pointerEvents = 'all';
+
+        // On mobile, hide unsupported steps
+        if (isMobile) {
+            document.getElementById('step-proctor').style.display = 'none';
+            document.getElementById('step-fullscreen').style.display = 'none';
         }
         
         updateStepUI('proctor', isProctorDone);
         updateStepUI('devices', isDeviceDone);
         
-        // Start Test Trigger
         if (isFS && isProctorDone && isDeviceDone) {
             document.getElementById('fullscreen-overlay').style.display = 'none';
             const container = document.getElementById('test-container');

@@ -16,12 +16,13 @@ django_asgi_app = get_asgi_application()
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 import apps.multiplayer.routing
+from users.ws_auth import TokenAuthMiddleware
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
-        URLRouter(
+        TokenAuthMiddleware(URLRouter(
             apps.multiplayer.routing.websocket_urlpatterns
-        )
+        ))
     ),
 })

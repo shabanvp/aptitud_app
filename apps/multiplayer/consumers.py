@@ -198,6 +198,16 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
                     start_time=timezone.now()
                 )
                 
+                # Fetch random questions for the match
+                from apps.tests.models import Question
+                import random
+                questions_query = Question.objects.filter(category__slug=self.topic)
+                if not questions_query.exists():
+                    questions_query = Question.objects.all()
+                all_questions = list(questions_query)
+                selected_questions = random.sample(all_questions, min(len(all_questions), 10))
+                match.questions.set(selected_questions)
+                
                 MatchPlayer.objects.create(match=match, user=u1)
                 MatchPlayer.objects.create(match=match, user=u2)
                 

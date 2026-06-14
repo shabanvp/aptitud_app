@@ -2,7 +2,7 @@ import os
 import re
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
-from tests.models import Category, Question, Option
+from apps.tests.models import Category, Question, Option
 
 class Command(BaseCommand):
     help = 'Import all company-level questions from the internal question_bank folder'

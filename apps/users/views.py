@@ -55,12 +55,15 @@ def company_onboarding(request):
             return redirect('register')
     return render(request, 'users/company_onboarding.html')
 
-def _send_verification_email(request, user):
+def _send_verification_email(request, user, redirect_to=None):
     """Helper: build and send the token-based verification email."""
     uid   = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     domain = request.get_host()
     verify_url = f"http://{domain}/verify-email/{uid}/{token}/"
+    if redirect_to:
+        from urllib.parse import quote
+        verify_url += f"?next={quote(redirect_to)}"
 
     context = {
         'user': user,
@@ -105,14 +108,11 @@ def register(request):
                 request.session.pop('onboarding_status', None)
                 request.session.pop('onboarding_interest', None)
 
-            # Save as INACTIVE until email is verified
-            user.is_active = False
+            # Activate immediately (no email verification required)
+            user.is_active = True
             user.save()
 
-            # Send verification email
-            _send_verification_email(request, user)
-
-            return redirect('email_sent')
+            return redirect('login')
     else:
         form = CustomUserCreationForm()
     return render(request, 'users/register.html', {'form': form})
@@ -131,12 +131,14 @@ def verify_email(request, uidb64, token):
     except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
         user = None
 
+    next_url = request.GET.get('next', '')
+
     if user is not None and default_token_generator.check_token(user, token):
         user.is_active = True
         user.save()
-        return render(request, 'users/email_verify_success.html', {'success': True})
+        return render(request, 'users/email_verify_success.html', {'success': True, 'next': next_url})
     else:
-        return render(request, 'users/email_verify_success.html', {'success': False})
+        return render(request, 'users/email_verify_success.html', {'success': False, 'next': next_url})
 
 
 @login_required
@@ -536,3 +538,357 @@ def aptix_chat_api(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate, get_user_model
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+from functools import wraps
+
+def token_required(view_func):
+    """
+    Decorator for API views that require token-based authentication.
+    Passes the authenticated user in request.user.
+    """
+    @wraps(view_func)
+    def wrapped_view(request, *args, **kwargs):
+        User = get_user_model()
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Token '):
+            return JsonResponse({'error': 'Authentication credentials were not provided.'}, status=401)
+        
+        token = auth_header.split(' ')[1]
+        signer = TimestampSigner()
+        try:
+            # Token is valid for 30 days
+            username = signer.unsign(token, max_age=30 * 24 * 3600)
+            request.user = User.objects.get(username=username)
+        except (SignatureExpired, BadSignature, User.DoesNotExist):
+            return JsonResponse({'error': 'Invalid or expired token.'}, status=401)
+        
+        return view_func(request, *args, **kwargs)
+    return wrapped_view
+
+
+def _api_user_payload(user, include_profile_stats=False):
+    payload = {
+        'id': str(user.id),
+        'username': user.username,
+        'email': user.email,
+        'level': user.level,
+        'exp': user.exp,
+        'coins': user.coins,
+        'lives': user.lives,
+        'avatar': user.avatar.url if getattr(user, 'avatar', None) else '',
+        'is_company': user.is_company,
+        'current_status': user.current_status,
+        'interested_field': user.interested_field,
+        'hiring_focus': user.hiring_focus,
+        'organization': user.organization,
+        'date_joined': user.date_joined.isoformat() if user.date_joined else None,
+    }
+
+    if include_profile_stats and not user.is_company:
+        attempts = TestAttempt.objects.filter(user=user).order_by('-completed_at')
+        payload['total_attempts'] = attempts.count()
+        payload['recent_attempts'] = [
+            {
+                'category': attempt.category.name if attempt.category else 'General',
+                'score': attempt.score,
+                'completed_at': attempt.completed_at.isoformat() if attempt.completed_at else None,
+            }
+            for attempt in attempts[:5]
+        ]
+        payload['category_stats'] = [
+            {
+                'category': stat['category__name'] or 'General',
+                'avg_score': round(stat['avg_score'], 1) if stat['avg_score'] is not None else 0.0,
+                'count': stat['count'],
+            }
+            for stat in TestAttempt.objects.filter(user=user)
+            .values('category__name')
+            .annotate(avg_score=Avg('score'), count=Count('id'))
+            .exclude(category__isnull=True)
+        ]
+
+    return payload
+
+
+@csrf_exempt
+def api_login(request):
+    """
+    API endpoint for logging in.
+    Accepts: username (or email) and password in JSON body.
+    Returns: Signed auth token and user details.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST requests are allowed.'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+        
+    if not username or not password:
+        return JsonResponse({'error': 'Username/email and password are required.'}, status=400)
+        
+    # Check if user exists first to see if they are inactive
+    User = get_user_model()
+    try:
+        user_check = User.objects.filter(
+            Q(username__iexact=username) | Q(email__iexact=username)
+        ).first()
+    except Exception:
+        user_check = None
+        
+    if user_check and not user_check.is_active:
+        return JsonResponse({'error': 'Your account is inactive. Please verify your email first.'}, status=403)
+        
+    if user_check is None or not user_check.check_password(password):
+        return JsonResponse({'error': 'Invalid credentials.'}, status=401)
+    if not user_check.is_active:
+        return JsonResponse({'error': 'Your account is inactive. Please verify your email first.'}, status=403)
+
+    user = user_check
+        
+    # Generate a signed token using TimestampSigner
+    signer = TimestampSigner()
+    token = signer.sign(user.username)
+    
+    return JsonResponse({
+        'token': token,
+        'user': _api_user_payload(user),
+    })
+
+
+@csrf_exempt
+@token_required
+def api_profile(request, username=None):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Only GET requests are allowed.'}, status=405)
+
+    if username:
+        user = get_object_or_404(CustomUser, username=username)
+    else:
+        user = request.user
+
+    return JsonResponse({'profile': _api_user_payload(user, include_profile_stats=True)}, status=200)
+
+
+@csrf_exempt
+@token_required
+def api_profile_update(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST requests are allowed.'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+
+    user = request.user
+    for field in ('first_name', 'last_name', 'current_status', 'interested_field', 'organization', 'hiring_focus'):
+        if field in data:
+            setattr(user, field, data.get(field) or '')
+    user.save()
+
+    return JsonResponse({'profile': _api_user_payload(user, include_profile_stats=True)}, status=200)
+
+
+@csrf_exempt
+def api_register(request):
+    """
+    API endpoint for registering a new user.
+    Accepts: username, email, password, is_company, and role-specific fields.
+    Sets is_active=False and sends verification email.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST requests are allowed.'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+        
+    username = data.get('username', '').strip()
+    email = data.get('email', '').strip()
+    password = data.get('password', '').strip()
+    is_company = data.get('is_company', False)
+    
+    # Optional onboarding fields
+    current_status = data.get('current_status', '').strip()
+    interested_field = data.get('interested_field', '').strip()
+    hiring_focus = data.get('hiring_focus', '').strip()
+    organization = data.get('organization', '').strip()
+    
+    if not username or not email or not password:
+        return JsonResponse({'error': 'Username, email, and password are required.'}, status=400)
+        
+    User = get_user_model()
+    existing_by_username = User.objects.filter(username__iexact=username).first()
+    existing_by_email = User.objects.filter(email__iexact=email).first()
+
+    # If the same user exists by both username and email, allow account promotion to recruiter.
+    if existing_by_username or existing_by_email:
+        existing_user = None
+        if existing_by_username and existing_by_email:
+            if existing_by_username.pk == existing_by_email.pk:
+                existing_user = existing_by_username
+            else:
+                return JsonResponse({'error': 'Username and email are already taken by different accounts.'}, status=400)
+        else:
+            existing_user = existing_by_username or existing_by_email
+
+        if existing_user:
+            if existing_user.username.lower() == username.lower() and existing_user.email.lower() == email.lower():
+                if is_company and not existing_user.is_company:
+                    if not existing_user.check_password(password):
+                        return JsonResponse({'error': 'Password does not match existing account. Please use the same password or log in instead.'}, status=400)
+
+                    existing_user.is_company = True
+                    existing_user.organization = organization
+                    existing_user.hiring_focus = hiring_focus
+                    if current_status:
+                        existing_user.current_status = current_status
+                    if interested_field:
+                        existing_user.interested_field = interested_field
+                    existing_user.save()
+
+                    if not existing_user.is_active:
+                        # Activate existing account immediately (skip verification email)
+                        existing_user.is_active = True
+                        existing_user.save()
+
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Your existing account has been upgraded to recruiter. You can now log in and access recruiter features.'
+                    }, status=200)
+
+                if existing_user.is_company:
+                    return JsonResponse({'error': 'A recruiter account already exists with this username/email. Please log in.'}, status=400)
+
+                return JsonResponse({
+                    'error': 'This username/email is already registered as a candidate. Use the same account to log in or select a different recruiter username/email.'
+                }, status=400)
+
+            return JsonResponse({'error': 'Username or email is already taken.'}, status=400)
+
+    try:
+        # Create user and activate immediately (no email verification)
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            is_company=is_company,
+            current_status=current_status,
+            interested_field=interested_field,
+            hiring_focus=hiring_focus,
+            organization=organization,
+            is_active=True
+        )
+        
+        # Activate immediately and return success (no email verification)
+        return JsonResponse({
+            'success': True,
+            'message': 'Registration successful! You can now log in.'
+        }, status=201)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@token_required
+def api_recruiter_candidates(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Only GET requests are allowed.'}, status=405)
+
+    if not getattr(request.user, 'is_company', False):
+        return JsonResponse({'error': 'Unauthorized access.'}, status=403)
+
+    candidates = CustomUser.objects.filter(is_company=False).order_by('-level', '-exp')[:30]
+    seven_days_ago = timezone.now() - timezone.timedelta(days=7)
+    new_candidates_count = CustomUser.objects.filter(is_company=False, date_joined__gte=seven_days_ago).count()
+    total_candidates = CustomUser.objects.filter(is_company=False).count()
+
+    candidate_list = []
+    for candidate in candidates:
+        candidate_list.append({
+            'id': str(candidate.id),
+            'username': candidate.username,
+            'email': candidate.email,
+            'level': candidate.level,
+            'exp': candidate.exp,
+            'coins': candidate.coins,
+            'lives': candidate.lives,
+            'avatar': candidate.avatar,
+            'interested_field': candidate.interested_field,
+            'current_status': candidate.current_status,
+            'organization': candidate.organization,
+            'hiring_focus': candidate.hiring_focus,
+            'date_joined': candidate.date_joined.isoformat() if candidate.date_joined else None,
+        })
+
+    return JsonResponse({
+        'candidates': candidate_list,
+        'new_candidates_count': new_candidates_count,
+        'total_candidates': total_candidates,
+    }, status=200)
+
+
+@csrf_exempt
+@token_required
+def api_recruiter_candidate_detail(request, username):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Only GET requests are allowed.'}, status=405)
+
+    if not getattr(request.user, 'is_company', False):
+        return JsonResponse({'error': 'Unauthorized access.'}, status=403)
+
+    candidate = get_object_or_404(CustomUser, username=username, is_company=False)
+
+    attempts = TestAttempt.objects.filter(user=candidate).order_by('-completed_at')[:20]
+    total_attempt_count = TestAttempt.objects.filter(user=candidate).count()
+    recent_attempts = []
+    for attempt in attempts:
+        recent_attempts.append({
+            'category': attempt.category.name if attempt.category else 'General',
+            'score': attempt.score,
+            'completed_at': attempt.completed_at.strftime('%d %b %Y') if attempt.completed_at else None,
+        })
+
+    cat_stats = TestAttempt.objects.filter(user=candidate).values('category__name').annotate(
+        avg_score=Avg('score'),
+        count=Count('id')
+    ).exclude(category__isnull=True)
+
+    category_stats = []
+    for stat in cat_stats:
+        category_stats.append({
+            'category': stat['category__name'] or 'General',
+            'avg_score': round(stat['avg_score'], 1) if stat['avg_score'] is not None else 0.0,
+            'count': stat['count'],
+        })
+
+    candidate_data = {
+        'id': str(candidate.id),
+        'username': candidate.username,
+        'email': candidate.email,
+        'level': candidate.level,
+        'exp': candidate.exp,
+        'coins': candidate.coins,
+        'lives': candidate.lives,
+        'avatar': candidate.avatar,
+        'interested_field': candidate.interested_field,
+        'current_status': candidate.current_status,
+        'organization': candidate.organization,
+        'hiring_focus': candidate.hiring_focus,
+        'date_joined': candidate.date_joined.isoformat() if candidate.date_joined else None,
+        'total_attempts': total_attempt_count,
+        'recent_attempts': recent_attempts,
+        'category_stats': category_stats,
+    }
+
+    return JsonResponse({'candidate': candidate_data}, status=200)
+

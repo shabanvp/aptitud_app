@@ -220,7 +220,7 @@
     <h1 style="margin-bottom: 1rem;">Secure Test Environment</h1>
 
     <div
-        style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%;">
+        style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%; color: #1e293b;">
         <div class="step-item" id="step-fullscreen"
             style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon"
@@ -236,7 +236,7 @@
         </div>
 
         <div class="step-item" id="step-proctor"
-            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon"
                 style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
                 2</div>
@@ -250,7 +250,7 @@
         </div>
 
         <div class="step-item" id="step-devices"
-            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0.5; pointer-events: none;">
+            style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
             <div class="step-icon"
                 style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
                 3</div>
@@ -298,7 +298,6 @@
             
             if (data.type === 'opponent_progress') {
                 if (data.user_id !== {{ request.user.id }}) {
-                    // Update opponent progress bar
                     const progress = (data.current_question / data.total_questions) * 100;
                     document.getElementById('opponent-progress-bar').style.width = `${progress}%`;
                     document.getElementById('opp-score').innerText = data.score;
@@ -310,31 +309,46 @@
             } else if (data.type === 'opponent_forfeit') {
                 if (data.user_id !== {{ request.user.id }}) {
                     showNotification(`Opponent forfeited! Reason: ${data.reason}`, "success");
-                    // We win automatically? The server handles winner logic. 
-                    // Let's just redirect to results shortly.
-                    setTimeout(() => {
-                        window.location.href = "{% url 'multiplayer:results' match.id %}";
-                    }, 3000);
+                    setTimeout(() => redirectToResults(), 3000);
                 }
             } else if (data.type === 'match_over') {
                 // Redirect to results immediately
-                window.location.href = "{% url 'multiplayer:results' match.id %}";
+                redirectToResults();
             } else if (data.type === 'error') {
                 alert(data.message);
             }
         };
         
         socket.onclose = function() {
-            console.log("Game Server Disconnected");
+            console.log("Game Server Disconnected — starting result polling fallback.");
+            // If we are in the waiting state, start polling for results
+            if (window._waitingForResults) {
+                startResultPolling();
+            }
         };
+    }
+
+    // Mobile detection — fullscreen and getDisplayMedia are unavailable on Android
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+        // Auto-bypass unsupported steps
+        window.fsBypassed = true;
+        screenStream = { active: true, getVideoTracks: function() { return [{ getSettings: function(){ return {}; }, onended: null }]; } };
     }
 
     // Modified Init - Validation before start
     function init() {
         initWebSocket();
         {% if site_settings.anti_malpractice_enabled %}
-        // We wait for user interaction via overlay
-        checkSteps();
+        if (isMobile) {
+            // Skip overlay entirely on mobile — not supported
+            document.getElementById('fullscreen-overlay').style.display = 'none';
+            const container = document.getElementById('test-container');
+            if (container) { container.style.visibility = 'visible'; container.style.opacity = '1'; }
+            if (!isTestActive) { isTestActive = true; showQuestion(currentQuestion); startTimer(); }
+        } else {
+            checkSteps();
+        }
         {% else %}
         document.getElementById('fullscreen-overlay').style.display = 'none';
         const container = document.getElementById('test-container');
@@ -344,7 +358,6 @@
         }
         if (!isTestActive) {
             isTestActive = true;
-            // The bypass skip is complete. Since there is no overlay, start immediately.
             showQuestion(currentQuestion);
             startTimer();
         }
@@ -352,32 +365,24 @@
     }
 
     function checkSteps() {
-        // Check Fullscreen
-        const isFS = !!document.fullscreenElement;
+        // Check Fullscreen — on mobile fsBypassed is set automatically
+        const isFS = !!document.fullscreenElement || !!window.fsBypassed;
         updateStepUI('fullscreen', isFS);
-
-        // Chain Enable Logic
-        // 1. Fullscreen -> 2. Proctoring -> 3. Devices
 
         const proctorStep = document.getElementById('step-proctor');
         const deviceStep = document.getElementById('step-devices');
         const isProctorDone = !!screenStream;
         const isDeviceDone = !!cameraStream;
 
-        if (isFS) {
-            proctorStep.style.opacity = '1';
-            proctorStep.style.pointerEvents = 'all';
-        } else {
-            proctorStep.style.opacity = '0.5';
-            proctorStep.style.pointerEvents = 'none';
-        }
+        proctorStep.style.opacity = '1';
+        proctorStep.style.pointerEvents = 'all';
+        deviceStep.style.opacity = '1';
+        deviceStep.style.pointerEvents = 'all';
 
-        if (isFS && isProctorDone) {
-            deviceStep.style.opacity = '1';
-            deviceStep.style.pointerEvents = 'all';
-        } else {
-            deviceStep.style.opacity = '0.5';
-            deviceStep.style.pointerEvents = 'none';
+        // On mobile, hide the screen monitoring step since it's not supported
+        if (isMobile) {
+            document.getElementById('step-proctor').style.display = 'none';
+            document.getElementById('step-fullscreen').style.display = 'none';
         }
 
         updateStepUI('proctor', isProctorDone);
@@ -918,6 +923,29 @@
         }
     }
     
+    function redirectToResults() {
+        window.location.href = "{% url 'multiplayer:results' match.id %}";
+    }
+
+    // Polling fallback: checks every 3s if match is complete, then redirects
+    function startResultPolling() {
+        if (window._resultPollInterval) return; // already running
+        window._resultPollInterval = setInterval(async () => {
+            try {
+                const resp = await fetch("{% url 'multiplayer:match_status' match.id %}", {
+                    headers: {'X-Requested-With': 'XMLHttpRequest'}
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.status === 'completed') {
+                        clearInterval(window._resultPollInterval);
+                        redirectToResults();
+                    }
+                }
+            } catch(e) { console.log('Poll error:', e); }
+        }, 3000);
+    }
+
     function submitTest() {
         evaluateCurrentQuestion(); // score the last one
         
@@ -928,6 +956,10 @@
             }));
         }
         
+        // Mark that we are waiting for results
+        window._waitingForResults = true;
+        // Also start polling immediately as a reliable fallback
+        startResultPolling();
         // Show Waiting screen
         createWaitingOverlay();
     }

@@ -11,7 +11,7 @@ import re
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aptitude_platform.settings')
 django.setup()
 
-from tests.models import Category, Question, Option
+from apps.tests.models import Category, Question, Option
 
 def clean_text(text):
     if not text:
